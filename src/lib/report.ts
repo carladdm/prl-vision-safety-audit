@@ -74,11 +74,13 @@ function tryParseJson(text: string): unknown {
 export function normalizeInforme(raw: unknown, depth = 0): Informe {
   if (depth > 4) throw new Error("La respuesta no tiene el formato esperado.");
   if (typeof raw === "string") {
+    let parsed: unknown;
     try {
-      return normalizeInforme(tryParseJson(raw), depth + 1);
+      parsed = tryParseJson(raw);
     } catch {
       throw new Error("La respuesta del webhook no es un JSON válido.");
     }
+    return normalizeInforme(parsed, depth + 1);
   }
   if (Array.isArray(raw)) {
     if (raw.length === 0) throw new Error("El webhook devolvió una lista vacía.");
