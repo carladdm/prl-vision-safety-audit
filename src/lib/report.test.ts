@@ -37,7 +37,7 @@ describe("normalizeInforme", () => {
   it("reads the exact webhook response structure", () => {
     const inf = normalizeInforme(body);
     expect(inf.resumen_general).toBe("Resumen");
-    expect(inf.hallazgos[0].normativa).toBe("RD 773/1997");
+    expect(inf.hallazgos[0]?.normativa).toBe("RD 773/1997");
   });
 
   it("unwraps n8n array / output-string responses", () => {

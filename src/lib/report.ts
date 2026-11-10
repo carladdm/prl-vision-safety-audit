@@ -89,19 +89,20 @@ export function normalizeInforme(raw: unknown, depth = 0): Informe {
   if (raw && typeof raw === "object") {
     const obj = raw as Record<string, unknown>;
     if ("hallazgos" in obj || "resumen_general" in obj) {
-      const list = Array.isArray(obj.hallazgos) ? obj.hallazgos : [];
+      const rawList = obj["hallazgos"];
+      const list: unknown[] = Array.isArray(rawList) ? rawList : [];
       return {
-        resumen_general: str(obj.resumen_general),
+        resumen_general: str(obj["resumen_general"]),
         hallazgos: list
           .filter((h): h is Record<string, unknown> => !!h && typeof h === "object")
           .map((h) => ({
-            titulo: str(h.titulo) || "Hallazgo sin título",
-            tipo: str(h.tipo),
-            nivel_riesgo: str(h.nivel_riesgo),
-            normativa: str(h.normativa),
-            medida_correctiva: str(h.medida_correctiva),
-            plazo: str(h.plazo),
-            responsable: str(h.responsable),
+            titulo: str(h["titulo"]) || "Hallazgo sin título",
+            tipo: str(h["tipo"]),
+            nivel_riesgo: str(h["nivel_riesgo"]),
+            normativa: str(h["normativa"]),
+            medida_correctiva: str(h["medida_correctiva"]),
+            plazo: str(h["plazo"]),
+            responsable: str(h["responsable"]),
           })),
       };
     }

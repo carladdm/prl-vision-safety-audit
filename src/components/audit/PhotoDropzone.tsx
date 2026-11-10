@@ -5,10 +5,10 @@ import { Button } from "@/components/ui/button";
 
 interface Props {
   previewUrl: string | null;
-  fileName?: string;
+  fileName?: string | undefined;
   onFile: (file: File) => void;
   onClear: () => void;
-  scanning?: boolean;
+  scanning?: boolean | undefined;
 }
 
 const ACCEPT = ["image/jpeg", "image/png"];
