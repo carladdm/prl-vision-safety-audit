@@ -12,24 +12,16 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Design system definition.
- *
- * The design lives in this file: oklch color tokens on the shadcn variables
- * (--background, --foreground, --primary, --secondary, --muted, --accent, ...) plus
- * new tokens as needed, font tokens, and custom styles and animations.
- *
- * The @theme inline block maps CSS custom properties to Tailwind utility
- * classes (e.g. --color-primary -> bg-primary, text-primary).
- *
- * The :root and .dark blocks define the actual color values using oklch.
- * All colors MUST use oklch format.
- *
- * To add a new semantic color:
- * 1. Add the variable to :root (light value) and .dark (dark value)
- * 2. Register it in @theme inline as --color-<name>: var(--<name>)
+ * PRL Vision Audit design system.
+ * Industrial / corporate: slate background, white cards, deep navy ink, safety amber accent.
+ * Risk scale tokens (low / medium / high) drive finding badges and card accents.
  */
 
 @theme inline {
+  --font-sans: "Barlow", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Barlow Condensed", "Barlow", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -57,6 +49,19 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-ring-offset-background: var(--background);
+
+  --color-safety: var(--safety);
+  --color-safety-foreground: var(--safety-foreground);
+  --color-safety-soft: var(--safety-soft);
+
+  --color-risk-low: var(--risk-low);
+  --color-risk-low-soft: var(--risk-low-soft);
+  --color-risk-medium: var(--risk-medium);
+  --color-risk-medium-soft: var(--risk-medium-soft);
+  --color-risk-medium-ink: var(--risk-medium-ink);
+  --color-risk-high: var(--risk-high);
+  --color-risk-high-soft: var(--risk-high-soft);
+
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
@@ -73,13 +78,16 @@
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.129 0.042 264.695);
+  --radius: 0.75rem;
+
+  /* #F8FAFC */
+  --background: oklch(0.984 0.003 247.858);
+  /* #0F172A */
+  --foreground: oklch(0.208 0.042 265.755);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.129 0.042 264.695);
+  --card-foreground: oklch(0.208 0.042 265.755);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.129 0.042 264.695);
+  --popover-foreground: oklch(0.208 0.042 265.755);
   --primary: oklch(0.208 0.042 265.755);
   --primary-foreground: oklch(0.984 0.003 247.858);
   --secondary: oklch(0.968 0.007 247.896);
@@ -91,56 +99,45 @@
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.984 0.003 247.858);
   --border: oklch(0.929 0.013 255.508);
-  --input: oklch(0.929 0.013 255.508);
-  --ring: oklch(0.704 0.04 256.788);
+  --input: oklch(0.869 0.022 252.894);
+  --ring: oklch(0.769 0.165 70.08);
+
+  /* Safety amber #F59E0B */
+  --safety: oklch(0.769 0.165 70.08);
+  --safety-foreground: oklch(0.208 0.042 265.755);
+  --safety-soft: oklch(0.962 0.059 95.617);
+
+  /* Risk scale */
+  --risk-low: oklch(0.596 0.145 163.225);
+  --risk-low-soft: oklch(0.962 0.044 156.743);
+  --risk-medium: oklch(0.769 0.165 70.08);
+  --risk-medium-soft: oklch(0.962 0.059 95.617);
+  --risk-medium-ink: oklch(0.473 0.137 46.201);
+  --risk-high: oklch(0.577 0.215 27.325);
+  --risk-high-soft: oklch(0.936 0.032 17.717);
+
+  --gradient-hero: linear-gradient(
+    135deg,
+    oklch(0.208 0.042 265.755) 0%,
+    oklch(0.279 0.041 260.031) 100%
+  );
+  --shadow-card: 0 1px 2px oklch(0.208 0.042 265.755 / 4%),
+    0 4px 16px -6px oklch(0.208 0.042 265.755 / 8%);
+  --shadow-safety: 0 10px 30px -10px oklch(0.769 0.165 70.08 / 55%);
+
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
   --sidebar: oklch(0.984 0.003 247.858);
-  --sidebar-foreground: oklch(0.129 0.042 264.695);
+  --sidebar-foreground: oklch(0.208 0.042 265.755);
   --sidebar-primary: oklch(0.208 0.042 265.755);
   --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
   --sidebar-accent: oklch(0.968 0.007 247.896);
   --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
   --sidebar-border: oklch(0.929 0.013 255.508);
-  --sidebar-ring: oklch(0.704 0.04 256.788);
-}
-
-.dark {
-  --background: oklch(0.129 0.042 264.695);
-  --foreground: oklch(0.984 0.003 247.858);
-  --card: oklch(0.208 0.042 265.755);
-  --card-foreground: oklch(0.984 0.003 247.858);
-  --popover: oklch(0.208 0.042 265.755);
-  --popover-foreground: oklch(0.984 0.003 247.858);
-  --primary: oklch(0.929 0.013 255.508);
-  --primary-foreground: oklch(0.208 0.042 265.755);
-  --secondary: oklch(0.279 0.041 260.031);
-  --secondary-foreground: oklch(0.984 0.003 247.858);
-  --muted: oklch(0.279 0.041 260.031);
-  --muted-foreground: oklch(0.704 0.04 256.788);
-  --accent: oklch(0.279 0.041 260.031);
-  --accent-foreground: oklch(0.984 0.003 247.858);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.551 0.027 264.364);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.208 0.042 265.755);
-  --sidebar-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.279 0.041 260.031);
-  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.551 0.027 264.364);
+  --sidebar-ring: oklch(0.769 0.165 70.08);
 }
 
 @layer base {
@@ -151,5 +148,80 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
   }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+  }
+}
+
+/* Diagonal hazard tape: safety amber and navy. */
+@utility hazard-stripe {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    var(--safety) 0 12px,
+    var(--foreground) 12px 24px
+  );
+}
+
+@utility hazard-stripe-animated {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    var(--safety) 0 12px,
+    var(--foreground) 12px 24px
+  );
+  background-size: 34px 34px;
+  animation: hazard-move 0.8s linear infinite;
+}
+
+@utility surface-card {
+  background-color: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+}
+
+@utility bg-hero {
+  background-image: var(--gradient-hero);
+}
+
+@utility shadow-safety {
+  box-shadow: var(--shadow-safety);
+}
+
+@utility blueprint-grid {
+  background-image:
+    linear-gradient(oklch(1 0 0 / 6%) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(1 0 0 / 6%) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+@keyframes hazard-move {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 34px 0;
+  }
+}
+
+@keyframes scan-line {
+  0% {
+    top: 0%;
+  }
+  50% {
+    top: calc(100% - 3px);
+  }
+  100% {
+    top: 0%;
+  }
+}
+
+@utility animate-scan {
+  animation: scan-line 2.4s ease-in-out infinite;
 }
