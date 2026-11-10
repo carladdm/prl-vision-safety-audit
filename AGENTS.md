@@ -28,3 +28,8 @@ use the editor.
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
+
+## Project rules
+
+- The n8n webhook is called through the `sendToWebhook` server function (src/lib/webhook.functions.ts), not from the browser, so n8n CORS settings never block requests.
+- Report parsing, risk-level mapping and Word/email export live in src/lib/report.ts; UI components only render its normalized `Informe`.
