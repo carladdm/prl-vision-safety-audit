@@ -62,8 +62,17 @@ function tryParseJson(text: string): unknown {
   const cleaned = text
     .trim()
     .replace(/^```(?:json)?\s*/i, "")
-    .replace(/\s*```$/, "");
-  return JSON.parse(cleaned);
+    .replace(/\s*```$/, "")
+    .replace(/^\uFEFF/, "");
+  try {
+    return JSON.parse(cleaned);
+  } catch (err) {
+    // Extract the first JSON object/array if extra text surrounds it.
+    const start = cleaned.search(/[{[]/);
+    const end = Math.max(cleaned.lastIndexOf("}"), cleaned.lastIndexOf("]"));
+    if (start >= 0 && end > start) return JSON.parse(cleaned.slice(start, end + 1));
+    throw err;
+  }
 }
 
 /**
@@ -77,8 +86,11 @@ export function normalizeInforme(raw: unknown, depth = 0): Informe {
     let parsed: unknown;
     try {
       parsed = tryParseJson(raw);
-    } catch {
-      throw new Error("La respuesta del webhook no es un JSON válido.");
+    } catch (err) {
+      console.error("[PRL Vision Audit] JSON.parse falló:", err, "\nTexto recibido:", JSON.stringify(raw));
+      throw new Error(
+        `La respuesta del webhook no es un JSON válido. Recibido: ${raw.slice(0, 200) || "(vacío)"}`,
+      );
     }
     return normalizeInforme(parsed, depth + 1);
   }

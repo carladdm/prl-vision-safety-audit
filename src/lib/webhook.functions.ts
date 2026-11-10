@@ -40,6 +40,10 @@ export const sendToWebhook = createServerFn({ method: "POST" })
         signal: AbortSignal.timeout(180_000),
       });
       const body = await res.text();
+      console.log(
+        `Webhook ${res.status} content-type=${res.headers.get("content-type")} length=${body.length}:`,
+        body.slice(0, 1000),
+      );
       if (!res.ok) {
         console.error(`Webhook ${res.status}: ${body.slice(0, 500)}`);
         return {

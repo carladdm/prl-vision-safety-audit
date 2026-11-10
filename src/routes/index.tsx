@@ -116,8 +116,15 @@ function Index() {
       const res = await send({
         data: { url, payload: { imagen_base64, area: area.trim(), observaciones: observaciones.trim() } },
       });
+      console.log("[PRL Vision Audit] Respuesta del webhook:", res);
       if (!res.ok) throw new Error(res.error);
-      const parsed = normalizeInforme(res.body);
+      let parsed: Informe;
+      try {
+        parsed = normalizeInforme(res.body);
+      } catch (err) {
+        console.error("[PRL Vision Audit] Texto crudo recibido de n8n:\n", res.body);
+        throw err;
+      }
       setMeta({ area: area.trim(), observaciones: observaciones.trim(), fecha: new Date() });
       setIsSample(false);
       setInforme(parsed);
