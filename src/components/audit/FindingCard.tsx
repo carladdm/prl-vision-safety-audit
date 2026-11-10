@@ -1,0 +1,75 @@
+import { AlertTriangle, CalendarClock, Scale, ShieldCheck, UserCog, Wrench } from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
+import { riskLabel, riskLevel, type Hallazgo, type RiskLevel } from "@/lib/report";
+
+const accent: Record<RiskLevel, string> = {
+  low: "bg-risk-low",
+  medium: "bg-risk-medium",
+  high: "bg-risk-high",
+};
+
+const badgeVariant = {
+  low: "risk-low",
+  medium: "risk-medium",
+  high: "risk-high",
+} as const;
+
+export function FindingCard({ hallazgo, index }: { hallazgo: Hallazgo; index: number }) {
+  const lvl = riskLevel(hallazgo.nivel_riesgo);
+  const isAct = /acto/i.test(hallazgo.tipo);
+
+  return (
+    <article className="surface-card relative overflow-hidden">
+      <div className={`absolute inset-y-0 left-0 w-1.5 ${accent[lvl]}`} />
+      <div className="space-y-4 p-4 pl-6 sm:p-5 sm:pl-7">
+        <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
+          <span className="font-mono text-xs font-semibold text-muted-foreground">
+            #{String(index + 1).padStart(2, "0")}
+          </span>
+          <Badge variant={badgeVariant[lvl]} className="gap-1 uppercase tracking-wide">
+            <AlertTriangle className="size-3" />
+            {hallazgo.nivel_riesgo || riskLabel[lvl]}
+          </Badge>
+          {hallazgo.tipo && (
+            <Badge variant="outline" className="gap-1 bg-muted text-muted-foreground">
+              {isAct ? <UserCog className="size-3" /> : <Wrench className="size-3" />}
+              {hallazgo.tipo}
+            </Badge>
+          )}
+        </div>
+
+        <h3 className="text-xl font-semibold leading-tight">{hallazgo.titulo}</h3>
+
+        <div className="rounded-lg border border-border bg-muted/50 p-3">
+          <p className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <Scale className="size-3.5" /> Normativa aplicable
+          </p>
+          <p className="text-sm font-bold">{hallazgo.normativa || "—"}</p>
+        </div>
+
+        <div>
+          <p className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <ShieldCheck className="size-3.5" /> Medida correctiva propuesta
+          </p>
+          <p className="text-sm leading-relaxed">{hallazgo.medida_correctiva || "—"}</p>
+        </div>
+
+        <dl className="grid grid-cols-2 gap-3 border-t border-border pt-3">
+          <div>
+            <dt className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <CalendarClock className="size-3.5" /> Plazo
+            </dt>
+            <dd className="mt-0.5 text-sm font-semibold">{hallazgo.plazo || "—"}</dd>
+          </div>
+          <div>
+            <dt className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <UserCog className="size-3.5" /> Responsable
+            </dt>
+            <dd className="mt-0.5 text-sm font-semibold">{hallazgo.responsable || "—"}</dd>
+          </div>
+        </dl>
+      </div>
+    </article>
+  );
+}
