@@ -20,6 +20,23 @@ function readAsDataUrl(file: File): Promise<string> {
   });
 }
 
+/** Small JPEG data URL for the PDF and history (keeps localStorage light). */
+export async function fileToThumbDataUrl(file: File, maxSide = 900): Promise<string | null> {
+  try {
+    const img = await loadImage(await readAsDataUrl(file));
+    const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(img.width * scale);
+    canvas.height = Math.round(img.height * scale);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL("image/jpeg", 0.72);
+  } catch {
+    return null;
+  }
+}
+
 /** Returns raw Base64 (no `data:` prefix), resized to at most 1600 px and re-encoded as JPEG. */
 export async function fileToBase64(file: File): Promise<string> {
   const dataUrl = await readAsDataUrl(file);

@@ -1,13 +1,15 @@
-import { HardHat, Settings2 } from "lucide-react";
+import { HardHat, History, Settings2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
 interface Props {
   onOpenSettings: () => void;
+  onOpenHistory: () => void;
+  historyCount: number;
   webhookConfigured: boolean;
 }
 
-export function AppHeader({ onOpenSettings, webhookConfigured }: Props) {
+export function AppHeader({ onOpenSettings, onOpenHistory, historyCount, webhookConfigured }: Props) {
   return (
     <header className="bg-hero text-primary-foreground">
       <div className="blueprint-grid">
@@ -23,6 +25,19 @@ export function AppHeader({ onOpenSettings, webhookConfigured }: Props) {
               Asistente de Evaluación de Riesgos en Campo
             </p>
           </div>
+          <Button
+            variant="ghost"
+            onClick={onOpenHistory}
+            className="h-11 gap-1.5 px-3 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground [&_svg]:size-5"
+          >
+            <History />
+            <span className="hidden sm:inline">Historial</span>
+            {historyCount > 0 && (
+              <span className="rounded-full bg-safety px-1.5 text-xs font-bold text-safety-foreground">
+                {historyCount}
+              </span>
+            )}
+          </Button>
           <Button
             variant="ghost"
             size="icon"
