@@ -52,6 +52,14 @@ export const sendToWebhook = createServerFn({ method: "POST" })
           error: `El webhook respondió con error ${res.status}. ${body.slice(0, 300)}`.trim(),
         };
       }
+      if (body.trim().length === 0) {
+        return {
+          ok: false,
+          status: res.status,
+          error:
+            "n8n respondió sin contenido (respuesta vacía). En el nodo Webhook de n8n, cambia «Respond» a «When Last Node Finishes» o añade un nodo «Respond to Webhook» al final con el JSON del informe.",
+        };
+      }
       return { ok: true, status: res.status, body };
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
