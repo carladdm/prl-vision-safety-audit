@@ -1,5 +1,12 @@
 // Official-style PRL inspection record ("Acta") exported as PDF with jsPDF (browser only, loaded on demand).
-import { riskLabel, riskLevel, type Informe, type InspeccionMeta, type RiskLevel } from "@/lib/report";
+import {
+  riskLabel,
+  riskLevel,
+  sortBySeverity,
+  type Informe,
+  type InspeccionMeta,
+  type RiskLevel,
+} from "@/lib/report";
 
 const NAVY: [number, number, number] = [15, 23, 42];
 const AMBER: [number, number, number] = [245, 158, 11];
@@ -20,14 +27,23 @@ export async function downloadActaPdf(opts: {
   meta: InspeccionMeta;
   tecnico: string;
   foto: string | null;
+  isSample?: boolean;
 }) {
   const { jsPDF } = await import("jspdf");
-  const { informe, meta, tecnico, foto } = opts;
+  const { informe, meta, tecnico, foto, isSample = false } = opts;
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const W = 210;
   const H = 297;
   const M = 14;
   let y = 0;
+
+  doc.setProperties({
+    title: isSample ? "Acta de inspección (datos de ejemplo)" : "Acta de inspección de seguridad",
+    subject: `${meta.area || "Inspección de riesgos laborales"} · ${meta.fecha.toLocaleDateString("es-ES")}`,
+    author: tecnico || "PRL Vision Audit",
+    creator: "PRL Vision Audit",
+    keywords: "PRL, evaluación de riesgos, INSST, seguridad en el trabajo",
+  });
 
   const ensure = (h: number) => {
     if (y + h > H - 18) {
@@ -48,10 +64,21 @@ export async function downloadActaPdf(opts: {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.text("Evaluación de riesgos laborales · PRL Vision Audit", M, 20);
+  if (isSample) {
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.text("DATOS DE EJEMPLO · NO VÁLIDO COMO ACTA OFICIAL", M, 26);
+  }
   doc.setTextColor(...AMBER);
-  doc.text(meta.fecha.toLocaleString("es-ES", { dateStyle: "long", timeStyle: "short" }), W - M, 13, {
-    align: "right",
-  });
+  doc.text(
+    meta.fecha.toLocaleString("es-ES", { dateStyle: "long", timeStyle: "short" }),
+    W - M,
+    13,
+    {
+      align: "right",
+    },
+  );
   y = 40;
 
   // Data block
@@ -68,7 +95,10 @@ export async function downloadActaPdf(opts: {
     doc.text(lines, M + 52, y);
     y += Math.max(6, lines.length * 4.6 + 1.5);
   };
-  field("Fecha y hora", meta.fecha.toLocaleString("es-ES", { dateStyle: "full", timeStyle: "short" }));
+  field(
+    "Fecha y hora",
+    meta.fecha.toLocaleString("es-ES", { dateStyle: "full", timeStyle: "short" }),
+  );
   field("Área evaluada", meta.area);
   field("Técnico inspector", tecnico);
   if (meta.observaciones) field("Observaciones", meta.observaciones);
@@ -90,16 +120,24 @@ export async function downloadActaPdf(opts: {
     section("Evidencia fotográfica");
     try {
       const props = doc.getImageProperties(foto);
+      // Detect the real format instead of assuming JPEG: PNG/WebP would corrupt the PDF.
+      const rawType = (props as { fileType?: string }).fileType?.toUpperCase();
+      const format = rawType === "PNG" || rawType === "WEBP" ? rawType : "JPEG";
       const maxW = W - M * 2;
       const maxH = 85;
       const ratio = Math.min(maxW / props.width, maxH / props.height);
       const w = props.width * ratio;
       const h = props.height * ratio;
       ensure(h + 4);
-      doc.addImage(foto, "JPEG", M + (maxW - w) / 2, y, w, h);
+      doc.addImage(foto, format, M + (maxW - w) / 2, y, w, h);
       y += h + 6;
     } catch {
-      y += 2;
+      ensure(8);
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(9);
+      doc.setTextColor(...GREY);
+      doc.text("No se pudo incrustar la imagen de la evidencia.", M, y);
+      y += 8;
     }
   }
 
@@ -115,8 +153,9 @@ export async function downloadActaPdf(opts: {
   }
   y += 4;
 
-  // Findings table
-  section(`Hallazgos detectados (${informe.hallazgos.length})`);
+  // Findings table (most severe first, matching the on-screen report)
+  const hallazgos = sortBySeverity(informe.hallazgos);
+  section(`Hallazgos detectados (${hallazgos.length})`);
   const cols = [
     { k: "n", t: "Nº", w: 8 },
     { k: "titulo", t: "Hallazgo / Tipo", w: 42 },
@@ -125,6 +164,7 @@ export async function downloadActaPdf(opts: {
     { k: "medida", t: "Medida correctiva", w: 50 },
     { k: "plazo", t: "Plazo / Resp.", w: 26 },
   ];
+  const MAX_LINES_PER_CELL = 12;
   const drawHead = () => {
     doc.setFillColor(...NAVY);
     doc.rect(M, y, W - M * 2, 7, "F");
@@ -140,7 +180,7 @@ export async function downloadActaPdf(opts: {
   };
   drawHead();
   doc.setFontSize(8);
-  informe.hallazgos.forEach((h, i) => {
+  hallazgos.forEach((h, i) => {
     const lvl = riskLevel(h.nivel_riesgo);
     const cells: Record<string, string> = {
       n: String(i + 1),
@@ -152,7 +192,13 @@ export async function downloadActaPdf(opts: {
     };
     const wrapped = cols.map((c) => {
       doc.setFont("helvetica", c.k === "titulo" || c.k === "nivel" ? "bold" : "normal");
-      return doc.splitTextToSize(cells[c.k] ?? "", c.w - 3) as string[];
+      const lines = doc.splitTextToSize(cells[c.k] ?? "", c.w - 3) as string[];
+      // Cap very long cells so a single finding cannot overflow past the page.
+      if (lines.length <= MAX_LINES_PER_CELL) return lines;
+      const kept = lines.slice(0, MAX_LINES_PER_CELL);
+      const last = kept.length - 1;
+      kept[last] = `${kept[last] ?? ""}…`;
+      return kept;
     });
     const rowH = Math.max(...wrapped.map((l) => l.length)) * 3.6 + 4;
     if (y + rowH > H - 18) {
@@ -221,6 +267,22 @@ export async function downloadActaPdf(opts: {
       H - 8,
     );
     doc.text(`Página ${p} de ${pages}`, W - M, H - 8, { align: "right" });
+  }
+
+  // Watermark: prevents a sample report from being signed as an official record.
+  if (isSample) {
+    for (let p = 1; p <= pages; p++) {
+      doc.setPage(p);
+      doc.setTextColor(248, 113, 113);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(40);
+      doc.text("DATOS DE EJEMPLO", W / 2, H / 2 - 6, { align: "center", angle: 40 });
+      doc.setFontSize(13);
+      doc.text("NO VÁLIDO COMO ACTA OFICIAL", W / 2 + 3, H / 2 + 22, {
+        align: "center",
+        angle: 40,
+      });
+    }
   }
 
   const d = meta.fecha;
