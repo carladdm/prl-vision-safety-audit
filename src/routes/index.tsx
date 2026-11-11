@@ -7,13 +7,15 @@ import { toast } from "sonner";
 import { AppHeader } from "@/components/audit/AppHeader";
 import { PhotoDropzone } from "@/components/audit/PhotoDropzone";
 import { ReportPanel } from "@/components/audit/ReportPanel";
+import { HistoryPanel } from "@/components/audit/HistoryPanel";
 import { WebhookSettings } from "@/components/audit/WebhookSettings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { fileToBase64 } from "@/lib/image";
-import { informeEjemplo, normalizeInforme, type Informe, type InspeccionMeta } from "@/lib/report";
+import { loadHistorial, saveHistorial, upsertEntry, type InspeccionGuardada } from "@/lib/history";
+import { fileToBase64, fileToThumbDataUrl } from "@/lib/image";
+import { informeEjemplo, normalizeInforme, sortBySeverity, type Informe, type InspeccionMeta } from "@/lib/report";
 import { sendToWebhook } from "@/lib/webhook.functions";
 
 export const Route = createFileRoute("/")({
@@ -39,6 +41,9 @@ export const Route = createFileRoute("/")({
 });
 
 const WEBHOOK_KEY = "prl-vision-audit:webhook-url";
+const TECNICO_KEY = "prl-vision-audit:tecnico";
+// Webhook used when the technician has not set one on this device.
+const DEFAULT_WEBHOOK_URL = "";
 
 function Index() {
   const send = useServerFn(sendToWebhook);
@@ -54,13 +59,20 @@ function Index() {
   const [informe, setInforme] = useState<Informe | null>(null);
   const [meta, setMeta] = useState<InspeccionMeta | null>(null);
   const [isSample, setIsSample] = useState(false);
+  const [foto, setFoto] = useState<string | null>(null);
+  const [tecnico, setTecnico] = useState("");
+  const [historial, setHistorial] = useState<InspeccionGuardada[]>([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [entryId, setEntryId] = useState<string | null>(null);
   const reportRef = useRef<HTMLDivElement>(null);
   const settingsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const saved = window.localStorage.getItem(WEBHOOK_KEY) ?? "";
+    const saved = window.localStorage.getItem(WEBHOOK_KEY) || DEFAULT_WEBHOOK_URL;
     setWebhookUrl(saved);
     if (!saved) setSettingsOpen(true);
+    setTecnico(window.localStorage.getItem(TECNICO_KEY) ?? "");
+    setHistorial(loadHistorial());
   }, []);
 
   useEffect(() => {
@@ -68,6 +80,49 @@ function Index() {
       if (previewUrl) URL.revokeObjectURL(previewUrl);
     };
   }, [previewUrl]);
+
+  // Persist the current inspection (including technician edits) to the history.
+  useEffect(() => {
+    if (!informe || !meta || !entryId || isSample) return;
+    setHistorial((prev) => {
+      const next = upsertEntry(prev, {
+        id: entryId,
+        fecha: meta.fecha.toISOString(),
+        area: meta.area,
+        observaciones: meta.observaciones,
+        tecnico,
+        foto,
+        informe,
+      });
+      saveHistorial(next);
+      return next;
+    });
+  }, [informe, meta, entryId, isSample, tecnico, foto]);
+
+  const updateTecnico = (v: string) => {
+    setTecnico(v);
+    window.localStorage.setItem(TECNICO_KEY, v);
+  };
+
+  const openEntry = (it: InspeccionGuardada) => {
+    setFile(null);
+    setPreviewUrl(null);
+    setFoto(it.foto);
+    setMeta({ area: it.area, observaciones: it.observaciones, fecha: new Date(it.fecha) });
+    if (it.tecnico) setTecnico(it.tecnico);
+    setIsSample(false);
+    setEntryId(it.id);
+    setInforme(it.informe);
+    setHistoryOpen(false);
+  };
+
+  const deleteEntry = (id: string) => {
+    setHistorial((prev) => {
+      const next = prev.filter((e) => e.id !== id);
+      saveHistorial(next);
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (informe) reportRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -85,12 +140,14 @@ function Index() {
     }
     setFile(f);
     setPreviewUrl(URL.createObjectURL(f));
+    void fileToThumbDataUrl(f).then(setFoto);
     setError(null);
   };
 
   const clearFile = () => {
     setFile(null);
     setPreviewUrl(null);
+    setFoto(null);
   };
 
   const openSettings = () => {
@@ -127,7 +184,8 @@ function Index() {
       }
       setMeta({ area: area.trim(), observaciones: observaciones.trim(), fecha: new Date() });
       setIsSample(false);
-      setInforme(parsed);
+      setEntryId(crypto.randomUUID());
+      setInforme({ ...parsed, hallazgos: sortBySeverity(parsed.hallazgos) });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Error inesperado al analizar.";
       setError(msg);
@@ -145,13 +203,15 @@ function Index() {
       fecha: new Date(),
     });
     setIsSample(true);
-    setInforme(informeEjemplo);
+    setEntryId(null);
+    setInforme({ ...informeEjemplo, hallazgos: sortBySeverity(informeEjemplo.hallazgos) });
   };
 
   const reset = () => {
     setInforme(null);
     setMeta(null);
     setIsSample(false);
+    setEntryId(null);
     clearFile();
     setArea("");
     setObservaciones("");
@@ -163,7 +223,19 @@ function Index() {
 
   return (
     <div className="min-h-screen pb-16">
-      <AppHeader onOpenSettings={openSettings} webhookConfigured={urlConfigured} />
+      <AppHeader
+        onOpenSettings={openSettings}
+        onOpenHistory={() => setHistoryOpen(true)}
+        historyCount={historial.length}
+        webhookConfigured={urlConfigured}
+      />
+      <HistoryPanel
+        open={historyOpen}
+        onOpenChange={setHistoryOpen}
+        items={historial}
+        onOpen={openEntry}
+        onDelete={deleteEntry}
+      />
 
       <main className="mx-auto max-w-3xl space-y-6 px-4 pt-6">
         {!informe && (
@@ -273,13 +345,20 @@ function Index() {
             <ReportPanel
               informe={informe}
               meta={meta}
-              previewUrl={previewUrl}
+              previewUrl={foto ?? previewUrl}
               isSample={isSample}
+              tecnico={tecnico}
+              onTecnicoChange={updateTecnico}
+              onChange={setInforme}
               onReset={reset}
             />
           </div>
         )}
       </main>
+
+      <footer className="mx-auto mt-12 max-w-3xl border-t border-border px-4 pt-5 text-center text-xs text-muted-foreground">
+        Herramienta de apoyo técnico con IA · Validación final sujeta a criterio de Técnico Superior en PRL
+      </footer>
     </div>
   );
 }

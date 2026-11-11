@@ -33,3 +33,4 @@ use the editor.
 
 - The n8n webhook is called through the `sendToWebhook` server function (src/lib/webhook.functions.ts), not from the browser, so n8n CORS settings never block requests.
 - Report parsing, risk-level mapping and Word/email export live in src/lib/report.ts; UI components only render its normalized `Informe`.
+- PDF acta generation lives in src/lib/pdf.ts (jsPDF, dynamically imported) and inspection history in src/lib/history.ts (localStorage); why: keeps browser-only code out of SSR and UI components thin.

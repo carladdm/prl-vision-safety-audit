@@ -123,7 +123,7 @@ export async function downloadActaPdf(opts: {
     { k: "nivel", t: "Riesgo", w: 22 },
     { k: "normativa", t: "Normativa", w: 34 },
     { k: "medida", t: "Medida correctiva", w: 50 },
-    { k: "plazo", t: "Plazo / Responsable", w: 26 },
+    { k: "plazo", t: "Plazo / Resp.", w: 26 },
   ];
   const drawHead = () => {
     doc.setFillColor(...NAVY);
@@ -150,8 +150,10 @@ export async function downloadActaPdf(opts: {
       medida: h.medida_correctiva || "—",
       plazo: `${h.plazo || "—"}\n${h.responsable || ""}`,
     };
-    doc.setFont("helvetica", "normal");
-    const wrapped = cols.map((c) => doc.splitTextToSize(cells[c.k] ?? "", c.w - 3) as string[]);
+    const wrapped = cols.map((c) => {
+      doc.setFont("helvetica", c.k === "titulo" || c.k === "nivel" ? "bold" : "normal");
+      return doc.splitTextToSize(cells[c.k] ?? "", c.w - 3) as string[];
+    });
     const rowH = Math.max(...wrapped.map((l) => l.length)) * 3.6 + 4;
     if (y + rowH > H - 18) {
       doc.addPage();

@@ -1,13 +1,17 @@
-import { ClipboardCopy, FileText, MapPin, RotateCcw } from "lucide-react";
+import { ClipboardCopy, FileDown, FileText, Loader2, MapPin, RotateCcw } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { FindingCard } from "@/components/audit/FindingCard";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { downloadActaPdf } from "@/lib/pdf";
 import {
   countByRisk,
   informeToHtml,
   informeToText,
-  sortBySeverity,
+  type Hallazgo,
   type Informe,
   type InspeccionMeta,
 } from "@/lib/report";
@@ -17,6 +21,9 @@ interface Props {
   meta: InspeccionMeta;
   previewUrl: string | null;
   isSample: boolean;
+  tecnico: string;
+  onTecnicoChange: (v: string) => void;
+  onChange: (inf: Informe) => void;
   onReset: () => void;
 }
 
@@ -40,9 +47,31 @@ async function copyReport(informe: Informe, meta: InspeccionMeta) {
   }
 }
 
-export function ReportPanel({ informe, meta, previewUrl, isSample, onReset }: Props) {
+export function ReportPanel({ informe, meta, previewUrl, isSample, tecnico, onTecnicoChange, onChange, onReset }: Props) {
   const counts = countByRisk(informe.hallazgos);
-  const sorted = sortBySeverity(informe.hallazgos);
+  // Keep the order fixed while the technician edits; sorting happens when the report loads.
+  const sorted = informe.hallazgos;
+  const [pdfBusy, setPdfBusy] = useState(false);
+
+  const updateAt = (i: number, h: Hallazgo) =>
+    onChange({ ...informe, hallazgos: informe.hallazgos.map((x, j) => (j === i ? h : x)) });
+
+  const downloadPdf = async () => {
+    if (!tecnico.trim()) {
+      toast.error("Falta el nombre del técnico", { description: "Escríbelo antes de descargar el acta." });
+      document.getElementById("tecnico")?.focus();
+      return;
+    }
+    setPdfBusy(true);
+    try {
+      await downloadActaPdf({ informe, meta, tecnico: tecnico.trim(), foto: previewUrl });
+    } catch (e) {
+      console.error(e);
+      toast.error("No se pudo generar el PDF");
+    } finally {
+      setPdfBusy(false);
+    }
+  };
 
   return (
     <section className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -105,12 +134,29 @@ export function ReportPanel({ informe, meta, previewUrl, isSample, onReset }: Pr
       ) : (
         <div className="space-y-4">
           {sorted.map((h, i) => (
-            <FindingCard key={`${h.titulo}-${i}`} hallazgo={h} index={i} />
+            <FindingCard key={i} hallazgo={h} index={i} onChange={(nh) => updateAt(i, nh)} />
           ))}
         </div>
       )}
 
+      <div className="surface-card space-y-2 p-4">
+        <Label htmlFor="tecnico" className="text-xs font-semibold uppercase tracking-wide">
+          Nombre del Técnico Inspector
+        </Label>
+        <Input
+          id="tecnico"
+          value={tecnico}
+          onChange={(e) => onTecnicoChange(e.target.value)}
+          maxLength={120}
+          placeholder="Ej. María López García"
+          className="h-12 bg-card text-base"
+        />
+      </div>
+
       <div className="grid gap-3 pt-2 sm:grid-cols-2">
+        <Button variant="safety" size="xl" className="sm:col-span-2" onClick={downloadPdf} disabled={pdfBusy}>
+          {pdfBusy ? <Loader2 className="animate-spin" /> : <FileDown />} Descargar Acta en PDF
+        </Button>
         <Button variant="ink" size="xl" onClick={() => copyReport(informe, meta)}>
           <ClipboardCopy /> Copiar Informe para Word/Email
         </Button>
