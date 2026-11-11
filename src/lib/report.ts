@@ -30,24 +30,35 @@ const strip = (s: string) =>
     .toLowerCase()
     .trim();
 
-/** Maps the free-text risk level to the three-colour scale. */
+/**
+ * Maps the free-text risk level to the three-colour scale.
+ *
+ * INSST scale (RD 39/1997): Trivial · Tolerable · Moderado · Importante · Intolerable.
+ * Trivial and Tolerable are acceptable levels, so they stay green; only Moderado is
+ * amber and Importante/Intolerable red. The "intolerable" check must run before the
+ * "tolerable" one, otherwise the substring match would downgrade it.
+ */
 export function riskLevel(nivel: string | undefined | null): RiskLevel {
   const n = strip(nivel ?? "");
-  if (/(importante|grave|intolerable|alto|critico|severo)/.test(n)) return "high";
-  if (/(moderado|medio|tolerable)/.test(n)) return "medium";
+  if (/(importante|grave|intolerable|inaceptable|no aceptable|alto|critico|severo)/.test(n)) {
+    return "high";
+  }
+  if (/(moderado|medio)/.test(n)) return "medium";
   return "low";
 }
 
 export const riskLabel: Record<RiskLevel, string> = {
-  low: "Trivial / Leve",
+  low: "Trivial / Tolerable / Leve",
   medium: "Moderado",
-  high: "Importante / Grave",
+  high: "Importante / Intolerable",
 };
 
 /** Sort findings most severe first. */
 export function sortBySeverity(hallazgos: Hallazgo[]): Hallazgo[] {
   const rank: Record<RiskLevel, number> = { high: 0, medium: 1, low: 2 };
-  return [...hallazgos].sort((a, b) => rank[riskLevel(a.nivel_riesgo)] - rank[riskLevel(b.nivel_riesgo)]);
+  return [...hallazgos].sort(
+    (a, b) => rank[riskLevel(a.nivel_riesgo)] - rank[riskLevel(b.nivel_riesgo)],
+  );
 }
 
 export function countByRisk(hallazgos: Hallazgo[]): Record<RiskLevel, number> {
@@ -81,21 +92,29 @@ function tryParseJson(text: string): unknown {
  * and returns a validated report, or throws a readable error.
  */
 export function normalizeInforme(raw: unknown, depth = 0): Informe {
-  if (depth > 4) throw new Error("La respuesta no tiene el formato esperado.");
+  if (depth > 6)
+    throw new Error("La respuesta del servicio de análisis tiene demasiados niveles anidados.");
+
   if (typeof raw === "string") {
     let parsed: unknown;
     try {
       parsed = tryParseJson(raw);
     } catch (err) {
-      console.error("[PRL Vision Audit] JSON.parse falló:", err, "\nTexto recibido:", JSON.stringify(raw));
+      // Technical detail only in development: the raw text may contain workplace data.
+      if (import.meta.env.DEV) {
+        console.error("[PRL Vision Audit] No se pudo interpretar el JSON:", err);
+        console.error("[PRL Vision Audit] Texto recibido (200 chars):", raw.slice(0, 200));
+      }
       throw new Error(
-        `La respuesta del webhook no es un JSON válido. Recibido: ${raw.slice(0, 200) || "(vacío)"}`,
+        "El informe recibido no se pudo leer porque no es un JSON válido. Vuelve a intentarlo; si persiste, contacta con el responsable de la herramienta.",
       );
     }
     return normalizeInforme(parsed, depth + 1);
   }
   if (Array.isArray(raw)) {
-    if (raw.length === 0) throw new Error("El webhook devolvió una lista vacía.");
+    if (raw.length === 0) {
+      throw new Error("El servicio de análisis devolvió una lista vacía. Vuelve a intentarlo.");
+    }
     return normalizeInforme(raw[0], depth + 1);
   }
   if (raw && typeof raw === "object") {
@@ -123,12 +142,11 @@ export function normalizeInforme(raw: unknown, depth = 0): Informe {
     }
   }
   throw new Error(
-    "La respuesta no contiene 'resumen_general' ni 'hallazgos'. Revisa el nodo 'Respond to Webhook' en n8n.",
+    "El servicio de análisis devolvió un informe incompleto (faltan el resumen o los hallazgos). Vuelve a intentarlo.",
   );
 }
 
-const fmtDate = (d: Date) =>
-  d.toLocaleString("es-ES", { dateStyle: "long", timeStyle: "short" });
+const fmtDate = (d: Date) => d.toLocaleString("es-ES", { dateStyle: "long", timeStyle: "short" });
 
 export function informeToText(inf: Informe, meta: InspeccionMeta): string {
   const lines: string[] = [];
@@ -228,7 +246,8 @@ export const informeEjemplo: Informe = {
       tipo: "Condición Insegura",
       nivel_riesgo: "Leve",
       normativa: "RD 485/1997, Anexo III (señales de obligación)",
-      medida_correctiva: "Sustituir la señalización por señales normalizadas visibles en el acceso al taller.",
+      medida_correctiva:
+        "Sustituir la señalización por señales normalizadas visibles en el acceso al taller.",
       plazo: "1 mes",
       responsable: "Técnico de PRL",
     },

@@ -1,4 +1,12 @@
-import { AlertTriangle, CalendarClock, Pencil, Scale, ShieldCheck, UserCog, Wrench } from "lucide-react";
+import {
+  AlertTriangle,
+  CalendarClock,
+  Pencil,
+  Scale,
+  ShieldCheck,
+  UserCog,
+  Wrench,
+} from "lucide-react";
 import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";

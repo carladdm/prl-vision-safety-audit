@@ -38,16 +38,56 @@ async function copyReport(informe: Informe, meta: InspeccionMeta) {
           "text/plain": new Blob([text], { type: "text/plain" }),
         }),
       ]);
-    } else {
+    } else if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(text);
+    } else {
+      throw new Error("clipboard-unsupported");
     }
-    toast.success("Informe copiado", { description: "Pégalo directamente en Word o en tu correo." });
+    toast.success("Informe copiado", {
+      description: "Pégalo directamente en Word o en tu correo.",
+    });
   } catch {
-    toast.error("No se pudo copiar al portapapeles");
+    // Fallback for embedded browsers / denied permissions / non-HTTPS contexts.
+    if (legacyCopy(text)) {
+      toast.success("Informe copiado", {
+        description: "Se ha copiado como texto plano. Pégalo en Word o en tu correo.",
+      });
+      return;
+    }
+    toast.error("No se pudo copiar al portapapeles", {
+      description: "Descarga el acta en PDF o selecciona el texto manualmente.",
+    });
   }
 }
 
-export function ReportPanel({ informe, meta, previewUrl, isSample, tecnico, onTecnicoChange, onChange, onReset }: Props) {
+/** Last-resort copy that works without the async Clipboard API (deprecated but widely supported). */
+function legacyCopy(text: string): boolean {
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    ta.style.position = "fixed";
+    ta.style.left = "-9999px";
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
+export function ReportPanel({
+  informe,
+  meta,
+  previewUrl,
+  isSample,
+  tecnico,
+  onTecnicoChange,
+  onChange,
+  onReset,
+}: Props) {
   const counts = countByRisk(informe.hallazgos);
   // Keep the order fixed while the technician edits; sorting happens when the report loads.
   const sorted = informe.hallazgos;
@@ -58,16 +98,30 @@ export function ReportPanel({ informe, meta, previewUrl, isSample, tecnico, onTe
 
   const downloadPdf = async () => {
     if (!tecnico.trim()) {
-      toast.error("Falta el nombre del técnico", { description: "Escríbelo antes de descargar el acta." });
+      toast.error("Falta el nombre del técnico", {
+        description: "Escríbelo antes de descargar el acta.",
+      });
       document.getElementById("tecnico")?.focus();
       return;
     }
     setPdfBusy(true);
     try {
-      await downloadActaPdf({ informe, meta, tecnico: tecnico.trim(), foto: previewUrl });
-    } catch (e) {
-      console.error(e);
-      toast.error("No se pudo generar el PDF");
+      await downloadActaPdf({
+        informe,
+        meta,
+        tecnico: tecnico.trim(),
+        foto: previewUrl,
+        isSample,
+      });
+      if (isSample) {
+        toast.warning("Acta de ejemplo generada", {
+          description: "Lleva marca de agua: no es válida como acta oficial.",
+        });
+      }
+    } catch {
+      toast.error("No se pudo generar el PDF", {
+        description: "Vuelve a intentarlo. Si persiste, copia el informe en Word.",
+      });
     } finally {
       setPdfBusy(false);
     }
@@ -84,6 +138,16 @@ export function ReportPanel({ informe, meta, previewUrl, isSample, tecnico, onTe
           </span>
         )}
       </div>
+
+      {isSample && (
+        <div
+          role="note"
+          className="rounded-lg border border-risk-medium/40 bg-risk-medium-soft px-3 py-2.5 text-sm font-medium text-risk-medium-ink"
+        >
+          Este informe contiene datos de ejemplo para probar la interfaz. El PDF se genera con marca
+          de agua y <strong>no es válido como acta oficial</strong>.
+        </div>
+      )}
 
       <div className="surface-card overflow-hidden">
         <div className="bg-hero p-5 text-primary-foreground">
@@ -121,9 +185,7 @@ export function ReportPanel({ informe, meta, previewUrl, isSample, tecnico, onTe
       </div>
 
       <div className="flex items-baseline justify-between">
-        <h3 className="text-lg font-semibold uppercase tracking-wide">
-          Hallazgos detectados
-        </h3>
+        <h3 className="text-lg font-semibold uppercase tracking-wide">Hallazgos detectados</h3>
         <span className="font-mono text-sm text-muted-foreground">{sorted.length}</span>
       </div>
 
@@ -154,7 +216,13 @@ export function ReportPanel({ informe, meta, previewUrl, isSample, tecnico, onTe
       </div>
 
       <div className="grid gap-3 pt-2 sm:grid-cols-2">
-        <Button variant="safety" size="xl" className="sm:col-span-2" onClick={downloadPdf} disabled={pdfBusy}>
+        <Button
+          variant="safety"
+          size="xl"
+          className="sm:col-span-2"
+          onClick={downloadPdf}
+          disabled={pdfBusy}
+        >
           {pdfBusy ? <Loader2 className="animate-spin" /> : <FileDown />} Descargar Acta en PDF
         </Button>
         <Button variant="ink" size="xl" onClick={() => copyReport(informe, meta)}>

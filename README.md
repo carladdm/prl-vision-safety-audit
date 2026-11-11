@@ -1,73 +1,116 @@
-# Prl Vision Safety Audit
+# 🛡️ PRL Vision Audit
 
-Crea una aplicación web moderna y profesional llamada "PRL Vision Audit", diseñada para técnicos de Prevención de Riesgos Laborales (PRL) que realizan inspecciones en campo.
+> Asistente inteligente para evaluar riesgos en campo y generar actas técnicas en minutos.
 
-DISEÑO Y ESTILO:
-- Estética limpia, corporativa e industrial (fondo claro #F8FAFC, tarjetas blancas con bordes sutiles, azul marino oscuro #0F172A para textos principales y amarillo/ámbar #F59E0B como color de acento de seguridad).
-- Diseño Mobile-First (adaptado para usarse desde un smartphone en obra, pero con buena visualización en escritorio).
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![n8n](https://img.shields.io/badge/n8n-Automation-EA4B71?logo=n8n&logoColor=white)](https://n8n.io)
+[![Licencia MIT](https://img.shields.io/badge/Licencia-MIT-22C55E)](LICENSE)
 
-ESTRUCTURA DE LA PANTALLA PRINCIPAL:
-1. Header superior: Logo minimalista con un icono de escudo/casco, título "PRL Vision Audit" y subtítulo "Asistente de Evaluación de Riesgos en Campo".
-2. Sección de Captura (Formulario):
-   - Un área grande de arrastrar/soltar o botón para "Tomar foto o subir evidencia" (que acepte imágenes JPG/PNG y muestre una vista previa de la foto subida).
-   - Un campo de texto corto: "Puesto de trabajo / Área" (ej. Taller de soldadura, Almacén logístico).
-   - Un área de texto para "Observaciones rápidas del técnico" (ej. Operario cortando metal sin pantalla).
-   - Un campo de configuración colapsable (o icono de engranaje en el header) para pegar la "URL del Webhook de n8n".
-   - Botón principal grande: "Analizar Riesgos y Generar Informe" (con estado de carga animado que diga "Analizando imagen y consultando normativa PRL...").
+🌐 **[Ver demo en vivo →](https://prl-vision-safety-audit.vercel.app)**
 
-3. Sección de Resultados (Panel de Informe Técnico):
-   - Se muestra solo después de recibir la respuesta del webhook.
-   - Muestra un resumen ejecutivo arriba y una lista de tarjetas por cada hallazgo detectado.
-   - Cada tarjeta debe mostrar:
-     * Título del hallazgo y un badge de color según el nivel de riesgo ("Trivial/Leve" en verde, "Moderado" en amarillo, "Importante/Grave" en rojo).
-     * Categoría (Acto Inseguro o Condición Insegura).
-     * Normativa aplicable (citada en negrita).
-     * Medida correctiva propuesta.
-     * Plazo y Responsable sugerido.
-   - Un botón secundario al final: "Copiar Informe para Word/Email" que copie todo el resultado formateado al portapapeles, y otro botón "Nueva Inspección".
+## Demo
 
-LÓGICA DE CONEXIÓN (WEBHOOK):
-Al pulsar "Analizar Riesgos", convierte la imagen subida a formato Base64 y envía una petición POST en formato JSON a la URL del Webhook configurada con esta estructura:
-{
-  "imagen_base64": "...",
-  "area": "...",
-  "observaciones": "..."
-}
+![Interfaz de PRL Vision Audit con tres hallazgos y la escala de riesgo INSST](assets/demo.png)
 
-La aplicación debe esperar un JSON de respuesta con esta estructura exacta para renderizar las tarjetas:
-{
-  "resumen_general": "Texto resumen...",
-  "hallazgos": [
-    {
-      "titulo": "...",
-      "tipo": "Acto Inseguro | Condición Insegura",
-      "nivel_riesgo": "Leve | Moderado | Importante",
-      "normativa": "...",
-      "medida_correctiva": "...",
-      "plazo": "...",
-      "responsable": "..."
-    }
-  ]
-}
-Incluye un botón de "Cargar datos de ejemplo" para que pueda probar la interfaz visualmente antes de conectar el webhook real.
+## Tabla de Contenidos
 
-This project was built with [Lovable](https://lovable.dev).
+- [El Problema y la Solución](#el-problema-y-la-solución)
+- [Características Principales](#características-principales)
+- [Arquitectura del Sistema](#arquitectura-del-sistema)
+- [Instalación y Configuración](#instalación-y-configuración)
+- [Origen y Evolución](#origen-y-evolución)
+- [Aviso Legal](#aviso-legal)
+- [Licencia](#-licencia)
 
-## Build with Lovable
+## El Problema y la Solución
 
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/b3754bfd-a385-4d84-bfc3-4bb97a944702).
+Cada visita a obra o planta genera fotos, notas y observaciones que el técnico debe convertir después en un informe técnico. Ese trabajo administrativo consume horas de oficina, retrasa la entrega del acta y deja hallazgos sin la referencia normativa o el plazo de corrección.
 
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
+**PRL Vision Audit** convierte una fotografía y dos campos de contexto en un borrador de evaluación de riesgos estructurado, con normativa, medidas correctivas y responsables. El técnico conserva siempre la decisión final: revisa, corrige y firma.
 
-## Development
+> **Propósito:** que los riesgos detectados en una inspección se corrijan antes de que alguien se lesione.
 
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+## Características Principales
 
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
+- 🔍 **Detección visual multimodal** — identifica actos y condiciones inseguras a partir de fotografías tomadas en campo.
+- ⚖️ **Criterio calibrado INSST** — clasifica los cinco niveles de la escala y los traduce a un semáforo de tres colores, evitando falsas alarmas.
+- 📜 **Encuadre normativo español** — fundamenta cada hallazgo con la Ley 31/1995 y los Reales Decretos específicos aplicables.
+- ✍️ **Validación por el técnico** — permite editar medidas, plazos y niveles de gravedad antes de emitir el documento.
+- 📄 **Acta PDF lista para firma** — exporta informes con evidencia fotográfica incrustada, metadatos y espacios de firma.
+- 🗂️ **Historial local rápido** — consulta las últimas inspecciones guardadas en el navegador, sin cuentas ni servidores intermedios.
+
+## Arquitectura del Sistema
+
+```mermaid
+flowchart LR
+    subgraph Cliente["Navegador · React 19 + TypeScript · Vite"]
+        A["Interfaz<br/>Tailwind CSS 4"]
+        E["Acta PDF<br/>jsPDF (carga diferida)"]
+        F["Historial<br/>localStorage"]
+    end
+
+    subgraph Servidor["Servidor · TanStack Start + Nitro"]
+        B["Server Function<br/>validación · timeout · anti-SSRF"]
+    end
+
+    subgraph Automatizacion["Automatización"]
+        C["Webhook n8n"]
+        D["IA multimodal<br/>criterios INSST"]
+    end
+
+    A -->|"foto + contexto"| B
+    B -->|"POST JSON · N8N_WEBHOOK_URL"| C
+    C -->|"imagen + área"| D
+    D -->|"hallazgos"| C
+    C -->|"informe estructurado"| B
+    B --> A
+    A --> E
+    A --> F
+```
+
+**Flujo:** Frontend (React + TypeScript) ➔ Server Function ➔ Webhook Seguro ➔ Motor n8n + IA Multimodal ➔ Acta PDF.
+
+## Instalación y Configuración
+
+Requisitos: **Node.js 20 o superior** y una instancia de n8n con el flujo de análisis multimodal.
+
+```bash
+# 1. Clona el repositorio
+git clone https://github.com/carladdm/prl-vision-safety-audit.git
+cd prl-vision-safety-audit
+
+# 2. Instala las dependencias
+npm install
+
+# 3. Configura las variables de entorno
+cp .env.example .env
+
+# 4. Arranca el entorno de desarrollo
 npm run dev
 ```
+
+> [!NOTE]
+> En Windows, usa `Copy-Item .env.example .env` si `cp` no está disponible. Vite mostrará en la terminal la URL local de la aplicación.
+
+| Variable          | Descripción                                                                                                                    | Requerido |
+| :---------------- | :----------------------------------------------------------------------------------------------------------------------------- | :-------: |
+| `N8N_WEBHOOK_URL` | URL completa del webhook de n8n que ejecuta el análisis multimodal. Se lee **solo en el servidor** y nunca llega al navegador. |   ✅ Sí   |
+
+> [!NOTE]
+> La variable **no lleva el prefijo `VITE_`**: ese prefijo haría que Vite incrustara la URL en el JavaScript público. Mantenerla en el servidor protege el webhook y evita problemas de CORS.
+
+## Origen y Evolución
+
+El primer prototipo se generó con Lovable para validar el flujo de captura y análisis. La versión actual reescribe la capa de servidor (validación, timeout y protección SSRF), corrige la escala INSST, añade pruebas automatizadas y refuerza la accesibilidad y la privacidad. El historial de commits documenta esa evolución.
+
+## Aviso Legal
+
+> [!IMPORTANT]
+> **Herramienta de apoyo técnico.** Los informes generados son borradores asistidos y no sustituyen una evaluación de riesgos legal. La validación, corrección y firma final corresponden siempre a un **Técnico Superior en Prevención de Riesgos Laborales acreditado**.
+
+## 📄 Licencia
+
+Distribuido bajo la **Licencia MIT**. Consulta el archivo [LICENSE](LICENSE) para el texto completo.
+
+© 2026 Carla Di Monno

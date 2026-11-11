@@ -1,5 +1,5 @@
 // Inspection history kept in the browser's localStorage.
-import type { Informe } from "@/lib/report";
+import { normalizeInforme, type Informe } from "@/lib/report";
 
 export interface InspeccionGuardada {
   id: string;
@@ -14,18 +14,62 @@ export interface InspeccionGuardada {
 const KEY = "prl-vision-audit:historial";
 export const MAX_HISTORIAL = 30;
 
+const asString = (v: unknown): string => (typeof v === "string" ? v : "");
+
+/**
+ * Rebuilds a stored inspection from untrusted localStorage data.
+ * Anything malformed is dropped instead of crashing the history panel.
+ */
+function sanitizeEntry(value: unknown): InspeccionGuardada | null {
+  if (!value || typeof value !== "object") return null;
+  const obj = value as Record<string, unknown>;
+
+  const id = asString(obj["id"]);
+  if (!id) return null;
+
+  const fecha = asString(obj["fecha"]);
+  if (Number.isNaN(new Date(fecha).getTime())) return null;
+
+  let informe: Informe;
+  try {
+    informe = normalizeInforme(obj["informe"]);
+  } catch {
+    return null;
+  }
+
+  const foto = asString(obj["foto"]);
+
+  return {
+    id,
+    fecha,
+    area: asString(obj["area"]),
+    observaciones: asString(obj["observaciones"]),
+    tecnico: asString(obj["tecnico"]),
+    foto: foto.startsWith("data:image/") ? foto : null,
+    informe,
+  };
+}
+
 export function loadHistorial(): InspeccionGuardada[] {
   try {
     const raw = window.localStorage.getItem(KEY);
-    const list = raw ? (JSON.parse(raw) as InspeccionGuardada[]) : [];
-    return Array.isArray(list) ? list : [];
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map(sanitizeEntry)
+      .filter((entry): entry is InspeccionGuardada => entry !== null)
+      .slice(0, MAX_HISTORIAL);
   } catch {
     return [];
   }
 }
 
 /** Inserts or replaces by id, newest first, capped. */
-export function upsertEntry(list: InspeccionGuardada[], entry: InspeccionGuardada): InspeccionGuardada[] {
+export function upsertEntry(
+  list: InspeccionGuardada[],
+  entry: InspeccionGuardada,
+): InspeccionGuardada[] {
   return [entry, ...list.filter((e) => e.id !== entry.id)].slice(0, MAX_HISTORIAL);
 }
 
@@ -41,4 +85,12 @@ export function saveHistorial(list: InspeccionGuardada[]): void {
     }
   }
   window.localStorage.removeItem(KEY);
+}
+
+export function clearHistorial(): void {
+  try {
+    window.localStorage.removeItem(KEY);
+  } catch {
+    // Storage can be disabled (private mode); nothing to clear in that case.
+  }
 }

@@ -2,6 +2,7 @@ import { Camera, ImagePlus, RefreshCw, X } from "lucide-react";
 import { useRef, useState, type DragEvent } from "react";
 
 import { Button } from "@/components/ui/button";
+import { ACCEPT_ATTRIBUTE, MAX_UPLOAD_BYTES } from "@/lib/image";
 
 interface Props {
   previewUrl: string | null;
@@ -10,8 +11,6 @@ interface Props {
   onClear: () => void;
   scanning?: boolean | undefined;
 }
-
-const ACCEPT = ["image/jpeg", "image/png"];
 
 export function PhotoDropzone({ previewUrl, fileName, onFile, onClear, scanning }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -29,12 +28,12 @@ export function PhotoDropzone({ previewUrl, fileName, onFile, onClear, scanning 
   };
 
   return (
-    <div>
+    <div className="space-y-2">
       <input
         ref={inputRef}
         type="file"
-        accept={ACCEPT.join(",")}
-        capture="environment"
+        accept={ACCEPT_ATTRIBUTE}
+        // No capture attribute: forcing the camera hides the gallery on many phones.
         className="hidden"
         onChange={(e) => {
           handleFiles(e.target.files);
@@ -103,10 +102,15 @@ export function PhotoDropzone({ previewUrl, fileName, onFile, onClear, scanning 
             </p>
           </div>
           <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">
-            <ImagePlus className="size-3.5" /> JPG o PNG
+            <ImagePlus className="size-3.5" /> JPG, PNG, WebP o HEIC · máx.{" "}
+            {Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))} MB
           </span>
         </button>
       )}
+      <p className="px-1 text-center text-[11px] leading-snug text-muted-foreground">
+        La foto se reduce en tu dispositivo antes de enviarse. El historial se guarda solo en este
+        navegador.
+      </p>
     </div>
   );
 }

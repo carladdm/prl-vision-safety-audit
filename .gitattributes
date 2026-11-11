@@ -1,0 +1,19 @@
+# Normalise every text file to LF so Windows checkouts stop breaking Prettier.
+* text=auto eol=lf
+
+# Binary assets must never be line-ending converted.
+*.ico   binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.webp  binary
+*.gif   binary
+*.pdf   binary
+*.woff  binary
+*.woff2 binary
+*.zip   binary
+
+# Windows-only scripts keep CRLF.
+*.ps1   text eol=crlf
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
