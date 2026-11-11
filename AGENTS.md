@@ -6,8 +6,10 @@
 - El build se apoya en `@lovable.dev/vite-tanstack-config`, que ya incluye TanStack Start,
   React, Tailwind, Nitro, alias `@` e inyección de `VITE_*`. No añadas esos plugins por
   separado ni retires el paquete sin migrar `vite.config.ts` y verificar los builds.
-- `npm run build` genera el target por defecto; `NITRO_PRESET=vercel npm run build`
-  reproduce el despliegue de Vercel.
+- `npm run build` genera el target por defecto (Cloudflare). Para reproducir el
+  despliegue de Vercel usa `NITRO_PRESET=vercel npm run build` en Linux/macOS o
+  `$env:NITRO_PRESET='vercel'; npm run build` en PowerShell. En Vercel lo aplica
+  `vercel.json`, que fuerza ese preset y desactiva la detección de framework.
 
 ## Comandos
 
