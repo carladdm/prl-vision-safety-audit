@@ -46,32 +46,34 @@ Cada visita a obra o planta genera fotos, notas y observaciones que el técnico 
 
 ## Arquitectura del Sistema
 
-```text
-┌──────────────────────────────────┐
-│  Frontend                        │
-│  React · Vite · Tailwind CSS     │
-└────────────────┬─────────────────┘
-                 │ Server Function (HTTPS)
-                 ▼
-┌──────────────────────────────────┐
-│  Webhook Seguro                  │
-│  validación · timeout · anti-SSRF│
-└────────────────┬─────────────────┘
-                 │ JSON + imagen
-                 ▼
-┌──────────────────────────────────┐
-│  Motor n8n + IA Multimodal       │
-│  criterios INSST · normativa     │
-└────────────────┬─────────────────┘
-                 │ informe estructurado
-                 ▼
-┌──────────────────────────────────┐
-│  Acta PDF firmable               │
-│  evidencia + hallazgos + firmas  │
-└──────────────────────────────────┘
+```mermaid
+flowchart LR
+    subgraph Cliente["Navegador · React 19 + TypeScript · Vite"]
+        A["Interfaz<br/>Tailwind CSS 4"]
+        E["Acta PDF<br/>jsPDF (carga diferida)"]
+        F["Historial<br/>localStorage"]
+    end
+
+    subgraph Servidor["Servidor · TanStack Start + Nitro"]
+        B["Server Function<br/>validación · timeout · anti-SSRF"]
+    end
+
+    subgraph Automatizacion["Automatización"]
+        C["Webhook n8n"]
+        D["IA multimodal<br/>criterios INSST"]
+    end
+
+    A -->|"foto + contexto"| B
+    B -->|"POST JSON · N8N_WEBHOOK_URL"| C
+    C -->|"imagen + área"| D
+    D -->|"hallazgos"| C
+    C -->|"informe estructurado"| B
+    B --> A
+    A --> E
+    A --> F
 ```
 
-**Flujo:** Frontend ➔ Webhook Seguro ➔ Motor n8n + IA Multimodal ➔ Acta PDF.
+**Flujo:** Frontend (React + TypeScript) ➔ Server Function ➔ Webhook Seguro ➔ Motor n8n + IA Multimodal ➔ Acta PDF.
 
 ## Instalación y Configuración
 

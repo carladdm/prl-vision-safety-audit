@@ -51,20 +51,31 @@ El técnico revisa el borrador, ajusta lo que haga falta y exporta:
 
 ## Arquitectura
 
-```text
-Frontend (React + Vite + Tailwind)
-        │
-        │ Server Function (HTTPS)
-        ▼
-Webhook Seguro (validación · timeout · anti-SSRF)
-        │
-        │ JSON + imagen
-        ▼
-Motor n8n + IA Multimodal (criterios INSST)
-        │
-        │ informe estructurado
-        ▼
-Acta PDF firmable (evidencia + hallazgos + firmas)
+```mermaid
+flowchart LR
+    subgraph Cliente["Navegador · React 19 + TypeScript · Vite"]
+        A["Interfaz<br/>Tailwind CSS 4"]
+        E["Acta PDF<br/>jsPDF (carga diferida)"]
+        F["Historial<br/>localStorage"]
+    end
+
+    subgraph Servidor["Servidor · TanStack Start + Nitro"]
+        B["Server Function<br/>validación · timeout · anti-SSRF"]
+    end
+
+    subgraph Automatizacion["Automatización"]
+        C["Webhook n8n"]
+        D["IA multimodal<br/>criterios INSST"]
+    end
+
+    A -->|"foto + contexto"| B
+    B -->|"POST JSON · N8N_WEBHOOK_URL"| C
+    C -->|"imagen + área"| D
+    D -->|"hallazgos"| C
+    C -->|"informe estructurado"| B
+    B --> A
+    A --> E
+    A --> F
 ```
 
 La decisión estructural es que **el navegador nunca conoce la URL del webhook**. El cliente invoca una Server Function de TanStack Start; el servidor lee `N8N_WEBHOOK_URL` de `process.env`, valida la petición y reenvía la inspección. Esto elimina CORS, protege la credencial y permite aplicar controles que en el cliente serían eludibles.
