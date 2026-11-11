@@ -1,14 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { FlaskConical, Loader2, ScanSearch } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { ClipboardList, FlaskConical, Info, Loader2, ScanSearch } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
 import { AppHeader } from "@/components/audit/AppHeader";
 import { PhotoDropzone } from "@/components/audit/PhotoDropzone";
 import { ReportPanel } from "@/components/audit/ReportPanel";
 import { HistoryPanel } from "@/components/audit/HistoryPanel";
-import { WebhookSettings } from "@/components/audit/WebhookSettings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { loadHistorial, saveHistorial, upsertEntry, type InspeccionGuardada } from "@/lib/history";
 import { fileToBase64, fileToThumbDataUrl } from "@/lib/image";
 import { informeEjemplo, normalizeInforme, sortBySeverity, type Informe, type InspeccionMeta } from "@/lib/report";
-import { sendToWebhook } from "@/lib/webhook.functions";
+import { getAnalysisStatus, sendToWebhook } from "@/lib/webhook.functions";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -40,16 +39,26 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-const WEBHOOK_KEY = "prl-vision-audit:webhook-url";
 const TECNICO_KEY = "prl-vision-audit:tecnico";
-// Webhook used when the technician has not set one on this device.
-const DEFAULT_WEBHOOK_URL = "";
+const LEGACY_WEBHOOK_KEY = "prl-vision-audit:webhook-url";
+const NOT_CONFIGURED = "El servicio de análisis no está configurado. Puedes probar la interfaz con los datos de ejemplo.";
+
+function StepLabel({ n, htmlFor, children }: { n: number; htmlFor?: string; children: ReactNode }) {
+  return (
+    <Label htmlFor={htmlFor} className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide">
+      <span className="flex size-5 items-center justify-center rounded bg-safety font-display text-xs font-bold text-safety-foreground">
+        {n}
+      </span>
+      {children}
+    </Label>
+  );
+}
 
 function Index() {
   const send = useServerFn(sendToWebhook);
+  const fetchStatus = useServerFn(getAnalysisStatus);
 
-  const [webhookUrl, setWebhookUrl] = useState("");
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [serviceReady, setServiceReady] = useState<boolean | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [area, setArea] = useState("");
@@ -65,12 +74,13 @@ function Index() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [entryId, setEntryId] = useState<string | null>(null);
   const reportRef = useRef<HTMLDivElement>(null);
-  const settingsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const saved = window.localStorage.getItem(WEBHOOK_KEY) || DEFAULT_WEBHOOK_URL;
-    setWebhookUrl(saved);
-    if (!saved) setSettingsOpen(true);
+    // Drop any webhook address saved on this device by older versions.
+    window.localStorage.removeItem(LEGACY_WEBHOOK_KEY);
+    fetchStatus()
+      .then((r) => setServiceReady(r.configured))
+      .catch(() => setServiceReady(false));
     setTecnico(window.localStorage.getItem(TECNICO_KEY) ?? "");
     setHistorial(loadHistorial());
   }, []);
@@ -128,11 +138,6 @@ function Index() {
     if (informe) reportRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [informe]);
 
-  const updateWebhook = (v: string) => {
-    setWebhookUrl(v);
-    window.localStorage.setItem(WEBHOOK_KEY, v.trim());
-  };
-
   const onFile = (f: File) => {
     if (!["image/jpeg", "image/png"].includes(f.type)) {
       toast.error("Formato no admitido", { description: "Sube una imagen JPG o PNG." });
@@ -150,28 +155,21 @@ function Index() {
     setFoto(null);
   };
 
-  const openSettings = () => {
-    setSettingsOpen(true);
-    settingsRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-  };
-
   const analyze = async () => {
     setError(null);
     if (!file) {
       setError("Añade una foto de la evidencia antes de analizar.");
       return;
     }
-    const url = webhookUrl.trim();
-    if (!/^https?:\/\/.+/i.test(url)) {
-      setError("Configura la URL del Webhook de n8n para poder analizar.");
-      openSettings();
+    if (serviceReady === false) {
+      setError(NOT_CONFIGURED);
       return;
     }
     setLoading(true);
     try {
       const imagen_base64 = await fileToBase64(file);
       const res = await send({
-        data: { url, payload: { imagen_base64, area: area.trim(), observaciones: observaciones.trim() } },
+        data: { payload: { imagen_base64, area: area.trim(), observaciones: observaciones.trim() } },
       });
       console.log("[PRL Vision Audit] Respuesta del webhook:", res);
       if (!res.ok) throw new Error(res.error);
@@ -219,15 +217,11 @@ function Index() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const urlConfigured = /^https?:\/\/.+/i.test(webhookUrl.trim());
-
   return (
     <div className="min-h-screen pb-16">
       <AppHeader
-        onOpenSettings={openSettings}
         onOpenHistory={() => setHistoryOpen(true)}
         historyCount={historial.length}
-        webhookConfigured={urlConfigured}
       />
       <HistoryPanel
         open={historyOpen}
@@ -240,35 +234,36 @@ function Index() {
       <main className="mx-auto max-w-3xl space-y-6 px-4 pt-6">
         {!informe && (
           <section className="space-y-5">
-            <div ref={settingsRef}>
-              <WebhookSettings
-                open={settingsOpen}
-                onOpenChange={setSettingsOpen}
-                url={webhookUrl}
-                onUrlChange={updateWebhook}
-              />
-            </div>
+            {serviceReady === false && (
+              <div className="flex items-start gap-2.5 rounded-lg border border-border bg-muted/60 px-3 py-2.5 text-sm text-muted-foreground">
+                <Info className="mt-0.5 size-4 shrink-0" />
+                <p>{NOT_CONFIGURED}</p>
+              </div>
+            )}
 
             <div className="surface-card space-y-5 p-4 sm:p-6">
               <div className="flex items-center gap-2">
-                <span className="flex size-6 items-center justify-center rounded-md bg-safety font-display text-sm font-bold text-safety-foreground">
-                  1
+                <span className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
+                  <ClipboardList className="size-4" />
                 </span>
                 <h2 className="text-lg font-semibold uppercase tracking-wide">Captura de evidencia</h2>
               </div>
 
-              <PhotoDropzone
-                previewUrl={previewUrl}
-                fileName={file?.name}
-                onFile={onFile}
-                onClear={clearFile}
-                scanning={loading}
-              />
+              <div className="space-y-2">
+                <StepLabel n={1}>Tomar foto o subir evidencia</StepLabel>
+                <PhotoDropzone
+                  previewUrl={previewUrl}
+                  fileName={file?.name}
+                  onFile={onFile}
+                  onClear={clearFile}
+                  scanning={loading}
+                />
+              </div>
 
               <div className="space-y-2">
-                <Label htmlFor="area" className="text-xs font-semibold uppercase tracking-wide">
-                  Puesto de trabajo / Área
-                </Label>
+                <StepLabel n={2} htmlFor="area">
+                  Puesto de trabajo / área
+                </StepLabel>
                 <Input
                   id="area"
                   value={area}
@@ -281,9 +276,9 @@ function Index() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="obs" className="text-xs font-semibold uppercase tracking-wide">
+                <StepLabel n={3} htmlFor="obs">
                   Observaciones rápidas del técnico
-                </Label>
+                </StepLabel>
                 <Textarea
                   id="obs"
                   value={observaciones}

@@ -96,10 +96,10 @@ export function PhotoDropzone({ previewUrl, fileName, onFile, onClear, scanning 
           </div>
           <div>
             <p className="font-display text-xl font-semibold uppercase tracking-wide">
-              Tomar foto o subir evidencia
+              Abrir cámara o galería
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Pulsa para abrir la cámara o arrastra una imagen aquí
+              Pulsa para hacer la foto o arrastra una imagen aquí
             </p>
           </div>
           <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">

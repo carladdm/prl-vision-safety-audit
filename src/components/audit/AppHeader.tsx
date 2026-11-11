@@ -1,15 +1,13 @@
-import { HardHat, History, Settings2 } from "lucide-react";
+import { HardHat, History } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
 interface Props {
-  onOpenSettings: () => void;
   onOpenHistory: () => void;
   historyCount: number;
-  webhookConfigured: boolean;
 }
 
-export function AppHeader({ onOpenSettings, onOpenHistory, historyCount, webhookConfigured }: Props) {
+export function AppHeader({ onOpenHistory, historyCount }: Props) {
   return (
     <header className="bg-hero text-primary-foreground">
       <div className="blueprint-grid">
@@ -37,18 +35,6 @@ export function AppHeader({ onOpenSettings, onOpenHistory, historyCount, webhook
                 {historyCount}
               </span>
             )}
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onOpenSettings}
-            aria-label="Configurar webhook de n8n"
-            className="relative size-11 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground [&_svg]:size-5"
-          >
-            <Settings2 />
-            <span
-              className={`absolute right-2 top-2 size-2 rounded-full ${webhookConfigured ? "bg-risk-low" : "bg-safety"}`}
-            />
           </Button>
         </div>
       </div>

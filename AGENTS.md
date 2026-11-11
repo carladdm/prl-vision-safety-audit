@@ -31,6 +31,6 @@ use the editor.
 
 ## Project rules
 
-- The n8n webhook is called through the `sendToWebhook` server function (src/lib/webhook.functions.ts), not from the browser, so n8n CORS settings never block requests.
+- The n8n webhook URL is the server secret N8N_WEBHOOK_URL, read only inside `sendToWebhook`/`getAnalysisStatus` (src/lib/webhook.functions.ts); why: keeps the URL out of the browser bundle and the repo, and avoids n8n CORS issues.
 - Report parsing, risk-level mapping and Word/email export live in src/lib/report.ts; UI components only render its normalized `Informe`.
 - PDF acta generation lives in src/lib/pdf.ts (jsPDF, dynamically imported) and inspection history in src/lib/history.ts (localStorage); why: keeps browser-only code out of SSR and UI components thin.
