@@ -23,6 +23,7 @@
 - [Características Principales](#características-principales)
 - [Arquitectura del Sistema](#arquitectura-del-sistema)
 - [Instalación y Configuración](#instalación-y-configuración)
+- [Origen y Evolución](#origen-y-evolución)
 - [Aviso Legal](#aviso-legal)
 - [Licencia](#-licencia)
 
@@ -31,6 +32,8 @@
 Cada visita a obra o planta genera fotos, notas y observaciones que el técnico debe convertir después en un informe técnico. Ese trabajo administrativo consume horas de oficina, retrasa la entrega del acta y deja hallazgos sin la referencia normativa o el plazo de corrección.
 
 **PRL Vision Audit** convierte una fotografía y dos campos de contexto en un borrador de evaluación de riesgos estructurado, con normativa, medidas correctivas y responsables. El técnico conserva siempre la decisión final: revisa, corrige y firma.
+
+> **Propósito:** que los riesgos detectados en una inspección se corrijan antes de que alguien se lesione.
 
 ## Características Principales
 
@@ -98,6 +101,10 @@ npm run dev
 
 > [!NOTE]
 > La variable **no lleva el prefijo `VITE_`**: ese prefijo haría que Vite incrustara la URL en el JavaScript público. Mantenerla en el servidor protege el webhook y evita problemas de CORS.
+
+## Origen y Evolución
+
+El primer prototipo se generó con Lovable para validar el flujo de captura y análisis. La versión actual reescribe la capa de servidor (validación, timeout y protección SSRF), corrige la escala INSST, añade pruebas automatizadas y refuerza la accesibilidad y la privacidad. El historial de commits documenta esa evolución.
 
 ## Aviso Legal
 
