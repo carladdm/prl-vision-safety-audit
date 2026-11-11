@@ -12,9 +12,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { loadHistorial, saveHistorial, upsertEntry, type InspeccionGuardada } from "@/lib/history";
-import { fileToBase64, fileToThumbDataUrl } from "@/lib/image";
-import { informeEjemplo, normalizeInforme, sortBySeverity, type Informe, type InspeccionMeta } from "@/lib/report";
+import {
+  clearHistorial,
+  loadHistorial,
+  saveHistorial,
+  upsertEntry,
+  type InspeccionGuardada,
+} from "@/lib/history";
+import { fileToBase64, fileToThumbDataUrl, isAcceptedImage, MAX_UPLOAD_BYTES } from "@/lib/image";
+import {
+  informeEjemplo,
+  normalizeInforme,
+  sortBySeverity,
+  type Informe,
+  type InspeccionMeta,
+} from "@/lib/report";
 import { getAnalysisStatus, sendToWebhook } from "@/lib/webhook.functions";
 
 export const Route = createFileRoute("/")({
@@ -41,11 +53,15 @@ export const Route = createFileRoute("/")({
 
 const TECNICO_KEY = "prl-vision-audit:tecnico";
 const LEGACY_WEBHOOK_KEY = "prl-vision-audit:webhook-url";
-const NOT_CONFIGURED = "El servicio de análisis no está configurado. Puedes probar la interfaz con los datos de ejemplo.";
+const NOT_CONFIGURED =
+  "El servicio de análisis no está disponible ahora mismo. Puedes revisar la interfaz con los datos de ejemplo mientras se restablece.";
 
 function StepLabel({ n, htmlFor, children }: { n: number; htmlFor?: string; children: ReactNode }) {
   return (
-    <Label htmlFor={htmlFor} className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide">
+    <Label
+      htmlFor={htmlFor}
+      className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide"
+    >
       <span className="flex size-5 items-center justify-center rounded bg-safety font-display text-xs font-bold text-safety-foreground">
         {n}
       </span>
@@ -74,16 +90,19 @@ function Index() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [entryId, setEntryId] = useState<string | null>(null);
   const reportRef = useRef<HTMLDivElement>(null);
+  // Guards against an out-of-order thumbnail overwriting the latest photo.
+  const photoSeq = useRef(0);
 
   useEffect(() => {
     // Drop any webhook address saved on this device by older versions.
     window.localStorage.removeItem(LEGACY_WEBHOOK_KEY);
     fetchStatus()
       .then((r) => setServiceReady(r.configured))
-      .catch(() => setServiceReady(false));
+      // Unknown (not "not configured"): a failed status check must never block analysis.
+      .catch(() => setServiceReady(null));
     setTecnico(window.localStorage.getItem(TECNICO_KEY) ?? "");
     setHistorial(loadHistorial());
-  }, []);
+  }, [fetchStatus]);
 
   useEffect(() => {
     return () => {
@@ -134,22 +153,44 @@ function Index() {
     });
   };
 
+  const clearAll = () => {
+    clearHistorial();
+    setHistorial([]);
+    toast.success("Historial vaciado", {
+      description: "Se han borrado las inspecciones de este dispositivo.",
+    });
+  };
+
   useEffect(() => {
     if (informe) reportRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [informe]);
 
   const onFile = (f: File) => {
-    if (!["image/jpeg", "image/png"].includes(f.type)) {
-      toast.error("Formato no admitido", { description: "Sube una imagen JPG o PNG." });
+    if (!isAcceptedImage(f)) {
+      toast.error("Formato no admitido", {
+        description: "Usa una foto en JPG, PNG, WebP o HEIC.",
+      });
       return;
     }
+    if (f.size > MAX_UPLOAD_BYTES) {
+      toast.error("La imagen es demasiado grande", {
+        description: `El límite es ${Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))} MB. Reduce la resolución de la foto e inténtalo de nuevo.`,
+      });
+      return;
+    }
+
+    const seq = ++photoSeq.current;
     setFile(f);
     setPreviewUrl(URL.createObjectURL(f));
-    void fileToThumbDataUrl(f).then(setFoto);
     setError(null);
+    void fileToThumbDataUrl(f).then((thumb) => {
+      // Ignore a slow thumbnail from a photo the technician already replaced.
+      if (photoSeq.current === seq) setFoto(thumb);
+    });
   };
 
   const clearFile = () => {
+    photoSeq.current++;
     setFile(null);
     setPreviewUrl(null);
     setFoto(null);
@@ -169,23 +210,21 @@ function Index() {
     try {
       const imagen_base64 = await fileToBase64(file);
       const res = await send({
-        data: { payload: { imagen_base64, area: area.trim(), observaciones: observaciones.trim() } },
+        data: {
+          payload: { imagen_base64, area: area.trim(), observaciones: observaciones.trim() },
+        },
       });
-      console.log("[PRL Vision Audit] Respuesta del webhook:", res);
       if (!res.ok) throw new Error(res.error);
-      let parsed: Informe;
-      try {
-        parsed = normalizeInforme(res.body);
-      } catch (err) {
-        console.error("[PRL Vision Audit] Texto crudo recibido de n8n:\n", res.body);
-        throw err;
-      }
+      const parsed = normalizeInforme(res.body);
       setMeta({ area: area.trim(), observaciones: observaciones.trim(), fecha: new Date() });
       setIsSample(false);
       setEntryId(crypto.randomUUID());
       setInforme({ ...parsed, hallazgos: sortBySeverity(parsed.hallazgos) });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Error inesperado al analizar.";
+      const msg =
+        e instanceof Error && e.message
+          ? e.message
+          : "No se pudo completar el análisis. Revisa tu conexión e inténtalo de nuevo.";
       setError(msg);
       toast.error("No se pudo generar el informe", { description: msg });
     } finally {
@@ -219,19 +258,17 @@ function Index() {
 
   return (
     <div className="min-h-screen pb-16">
-      <AppHeader
-        onOpenHistory={() => setHistoryOpen(true)}
-        historyCount={historial.length}
-      />
+      <AppHeader onOpenHistory={() => setHistoryOpen(true)} historyCount={historial.length} />
       <HistoryPanel
         open={historyOpen}
         onOpenChange={setHistoryOpen}
         items={historial}
         onOpen={openEntry}
         onDelete={deleteEntry}
+        onClear={clearAll}
       />
 
-      <main className="mx-auto max-w-3xl space-y-6 px-4 pt-6">
+      <main className="mx-auto max-w-3xl space-y-6 px-4 pt-6" aria-busy={loading}>
         {!informe && (
           <section className="space-y-5">
             {serviceReady === false && (
@@ -246,7 +283,9 @@ function Index() {
                 <span className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
                   <ClipboardList className="size-4" />
                 </span>
-                <h2 className="text-lg font-semibold uppercase tracking-wide">Captura de evidencia</h2>
+                <h2 className="text-lg font-semibold uppercase tracking-wide">
+                  Captura de evidencia
+                </h2>
               </div>
 
               <div className="space-y-2">
@@ -352,7 +391,8 @@ function Index() {
       </main>
 
       <footer className="mx-auto mt-12 max-w-3xl border-t border-border px-4 pt-5 text-center text-xs text-muted-foreground">
-        Herramienta de apoyo técnico con IA · Validación final sujeta a criterio de Técnico Superior en PRL
+        Herramienta de apoyo técnico con IA · Validación final sujeta a criterio de Técnico Superior
+        en PRL
       </footer>
     </div>
   );

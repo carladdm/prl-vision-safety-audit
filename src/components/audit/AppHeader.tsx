@@ -26,6 +26,7 @@ export function AppHeader({ onOpenHistory, historyCount }: Props) {
           <Button
             variant="ghost"
             onClick={onOpenHistory}
+            aria-label="Abrir el historial de inspecciones"
             className="h-11 gap-1.5 px-3 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground [&_svg]:size-5"
           >
             <History />

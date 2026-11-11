@@ -1,7 +1,13 @@
 import { ImageOff, MapPin, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import type { InspeccionGuardada } from "@/lib/history";
 import { countByRisk } from "@/lib/report";
 
@@ -11,14 +17,17 @@ interface Props {
   items: InspeccionGuardada[];
   onOpen: (item: InspeccionGuardada) => void;
   onDelete: (id: string) => void;
+  onClear: () => void;
 }
 
-export function HistoryPanel({ open, onOpenChange, items, onOpen, onDelete }: Props) {
+export function HistoryPanel({ open, onOpenChange, items, onOpen, onDelete, onClear }: Props) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-md">
         <SheetHeader>
-          <SheetTitle className="text-xl uppercase tracking-wide">Historial de inspecciones</SheetTitle>
+          <SheetTitle className="text-xl uppercase tracking-wide">
+            Historial de inspecciones
+          </SheetTitle>
           <SheetDescription>Guardadas en este dispositivo.</SheetDescription>
         </SheetHeader>
         <div className="mt-4 space-y-3 px-4 pb-6">
@@ -31,9 +40,17 @@ export function HistoryPanel({ open, onOpenChange, items, onOpen, onDelete }: Pr
             const c = countByRisk(it.informe.hallazgos);
             return (
               <div key={it.id} className="surface-card flex gap-3 p-3">
-                <button type="button" onClick={() => onOpen(it)} className="flex min-w-0 flex-1 gap-3 text-left">
+                <button
+                  type="button"
+                  onClick={() => onOpen(it)}
+                  className="flex min-w-0 flex-1 gap-3 text-left"
+                >
                   {it.foto ? (
-                    <img src={it.foto} alt="" className="size-16 shrink-0 rounded-md object-cover" />
+                    <img
+                      src={it.foto}
+                      alt=""
+                      className="size-16 shrink-0 rounded-md object-cover"
+                    />
                   ) : (
                     <div className="flex size-16 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
                       <ImageOff className="size-5" />
@@ -44,7 +61,10 @@ export function HistoryPanel({ open, onOpenChange, items, onOpen, onDelete }: Pr
                       <MapPin className="size-3.5 shrink-0" /> {it.area || "Sin área"}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {new Date(it.fecha).toLocaleString("es-ES", { dateStyle: "medium", timeStyle: "short" })}
+                      {new Date(it.fecha).toLocaleString("es-ES", {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      })}
                     </p>
                     <p className="mt-1 flex gap-2 text-xs font-semibold">
                       <span className="text-risk-high">{c.high} imp.</span>
@@ -65,6 +85,20 @@ export function HistoryPanel({ open, onOpenChange, items, onOpen, onDelete }: Pr
               </div>
             );
           })}
+          {items.length > 0 && (
+            <Button
+              variant="outline"
+              className="w-full text-risk-high"
+              onClick={() => {
+                const ok = window.confirm(
+                  "¿Vaciar todo el historial? Se borrarán las inspecciones guardadas en este dispositivo y no se puede deshacer.",
+                );
+                if (ok) onClear();
+              }}
+            >
+              <Trash2 /> Vaciar historial ({items.length})
+            </Button>
+          )}
         </div>
       </SheetContent>
     </Sheet>
