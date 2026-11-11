@@ -9,13 +9,9 @@
 
 🌐 **[Ver demo en vivo →](https://prl-vision-safety-audit.vercel.app)**
 
-<!-- 🔗 Autor: sustituye esta URL por la del despliegue real en Vercel cuando esté publicado. -->
-
 ## Demo
 
-![Demo de PRL Vision Audit](assets/demo.png)
-
-<!-- 📸 Autor: sube tu captura o GIF a assets/demo.png y actualiza esta referencia antes de publicar el portfolio. -->
+![Interfaz de PRL Vision Audit con tres hallazgos y la escala de riesgo INSST](assets/demo.png)
 
 ## Tabla de Contenidos
 
