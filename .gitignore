@@ -16,6 +16,18 @@ dist-ssr
 .nitro
 *.local
 
+# Environment variables (never commit real values)
+.env
+.env.*
+!.env.example
+
+# Vercel
+.vercel/
+
+# Test / TypeScript build caches
+coverage/
+*.tsbuildinfo
+
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars
