@@ -1,38 +1,40 @@
-<!-- LOVABLE:BEGIN -->
+# Reglas del proyecto
 
-> [!IMPORTANT]
-> This project is connected to [Lovable](https://lovable.dev). Avoid rewriting
-> published git history — force pushing, or rebasing/amending/squashing commits
-> that are already pushed — as it rewrites history on Lovable's side and the
-> user will likely lose their project history.
->
-> Commits you push to the connected branch sync back to Lovable and show up in
-> the editor, so keep the branch in a working state.
+## Stack
 
-## What Lovable manages
+- React 19 + TypeScript + Vite + Tailwind CSS 4 sobre TanStack Start (SSR con Nitro).
+- El build se apoya en `@lovable.dev/vite-tanstack-config`, que ya incluye TanStack Start,
+  React, Tailwind, Nitro, alias `@` e inyección de `VITE_*`. No añadas esos plugins por
+  separado ni retires el paquete sin migrar `vite.config.ts` y verificar los builds.
+- `npm run build` genera el target por defecto; `NITRO_PRESET=vercel npm run build`
+  reproduce el despliegue de Vercel.
 
-Rules outside this block are the project's own. Change the pieces below in
-Lovable, not by hand. With the [Lovable MCP](https://mcp.lovable.dev)
-connected, `send_message` asks Lovable to do it; otherwise ask the user to
-use the editor.
+## Comandos
 
-- **Database.** Do not add or edit `supabase/migrations/` or `drizzle/`.
-  Ask Lovable to change the schema.
-- **Generated files.** Do not edit a file whose header says it is automatically
-  generated.
-- **AI gateway.** Keep model calls on Lovable's gateway, and keep
-  `LOVABLE_API_KEY` out of browser code.
-- **Connectors.** Lovable provides native connectors. `list_connectors` shows
-  which are enabled; `add_connector` only returns the dashboard link. When a
-  connector is enabled, calls go through the connector gateway and need
-  `LOVABLE_API_KEY`. When Lovable does not provide one, users can bring their
-  own key and store it in Secrets.
-- **Secrets.** Lovable manages them. Do not put secret values in the repo.
+- `npm run dev`: desarrollo.
+- `npm run check`: typecheck + lint + tests. Obligatorio antes de commitear.
+- `npm run build`: build de producción.
 
-<!-- LOVABLE:END -->
+## Invariantes de seguridad
 
-## Project rules
+- La URL del webhook es el secreto de servidor `N8N_WEBHOOK_URL`, leído solo en
+  `src/lib/webhook.functions.ts`. Nunca debe llevar el prefijo `VITE_`: Vite lo
+  incrustaría en el bundle público.
+- No se registra el payload de la inspección ni el cuerpo de respuesta del webhook.
+- La URL se valida con `new URL()` y se bloquean destinos loopback, privados y
+  link-local (IPv4 e IPv6).
 
-- The n8n webhook URL is the server secret N8N_WEBHOOK_URL, read only inside `sendToWebhook`/`getAnalysisStatus` (src/lib/webhook.functions.ts); why: keeps the URL out of the browser bundle and the repo, and avoids n8n CORS issues.
-- Report parsing, risk-level mapping and Word/email export live in src/lib/report.ts; UI components only render its normalized `Informe`.
-- PDF acta generation lives in src/lib/pdf.ts (jsPDF, dynamically imported) and inspection history in src/lib/history.ts (localStorage); why: keeps browser-only code out of SSR and UI components thin.
+## Dominio y capas
+
+- `src/lib/report.ts` es la única fuente del contrato `Informe`, la escala de riesgo
+  INSST y las exportaciones. La UI solo renderiza datos ya normalizados.
+- `src/lib/pdf.ts` y `src/lib/history.ts` son código de navegador: se cargan en
+  diferido y no deben importarse desde el servidor.
+- El historial vive en `localStorage` (máx. 30 inspecciones) y debe sanearse al leerlo.
+
+## Convenciones
+
+- Conventional Commits en español, commits atómicos.
+- Los tests viven junto al módulo (`*.test.ts`) y se ejecutan con Vitest.
+- No reescribas el historial ya publicado (force push, rebase o amend de commits
+  públicos): añade commits nuevos.
