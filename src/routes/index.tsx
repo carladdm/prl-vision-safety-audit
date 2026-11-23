@@ -62,6 +62,21 @@ export const Route = createFileRoute("/")({
 
 const TECNICO_KEY = "prl-vision-audit:tecnico";
 const LEGACY_WEBHOOK_KEY = "prl-vision-audit:webhook-url";
+const CATEGORIAS_PISTAS = [
+  "EPI",
+  "Protección de mecanismos",
+  "Instalaciones eléctricas",
+  "Señalización",
+  "Orden y limpieza",
+  "Trabajos en altura",
+  "Ergonomía",
+  "Riesgo de incendio",
+] as const;
+
+const buildInstrucciones = (pistas: string[]) =>
+  pistas.length === 0
+    ? ""
+    : `Revisa exhaustivamente estas categorías y enumera todos los riesgos visibles: ${pistas.join(", ")}.`;
 const NOT_CONFIGURED =
   "El servicio de análisis no está disponible ahora mismo. Puedes revisar la interfaz con los datos de ejemplo mientras se restablece.";
 
@@ -88,6 +103,7 @@ function Index() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [area, setArea] = useState("");
   const [observaciones, setObservaciones] = useState("");
+  const [pistas, setPistas] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [informe, setInforme] = useState<Informe | null>(null);
@@ -218,9 +234,15 @@ function Index() {
     setLoading(true);
     try {
       const imagen_base64 = await fileToBase64(file);
+      const instrucciones_analisis = buildInstrucciones(pistas);
       const res = await send({
         data: {
-          payload: { imagen_base64, area: area.trim(), observaciones: observaciones.trim() },
+          payload: {
+            imagen_base64,
+            area: area.trim(),
+            observaciones: observaciones.trim(),
+            ...(instrucciones_analisis ? { instrucciones_analisis } : {}),
+          },
         },
       });
       if (!res.ok) throw new Error(res.error);
@@ -261,6 +283,7 @@ function Index() {
     clearFile();
     setArea("");
     setObservaciones("");
+    setPistas([]);
     setError(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -338,6 +361,41 @@ function Index() {
                   className="bg-card text-base"
                 />
               </div>
+
+              <fieldset disabled={loading} className="space-y-2">
+                <Label className="text-sm font-semibold">
+                  Pistas para el análisis{" "}
+                  <span className="font-normal text-muted-foreground">(opcional)</span>
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Marca las categorías que sospechas que aparecen. Ayudan a revisar la foto; no se
+                  guardan en el acta.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {CATEGORIAS_PISTAS.map((categoria) => {
+                    const activa = pistas.includes(categoria);
+                    return (
+                      <button
+                        key={categoria}
+                        type="button"
+                        aria-pressed={activa}
+                        onClick={() =>
+                          setPistas((prev) =>
+                            activa ? prev.filter((p) => p !== categoria) : [...prev, categoria],
+                          )
+                        }
+                        className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                          activa
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border bg-card text-muted-foreground hover:border-primary/50 hover:text-foreground"
+                        }`}
+                      >
+                        {categoria}
+                      </button>
+                    );
+                  })}
+                </div>
+              </fieldset>
 
               {error && (
                 <div
