@@ -15,6 +15,7 @@ const payloadSchema = z.object({
   imagen_base64: z.string().max(20_000_000),
   area: z.string().max(300),
   observaciones: z.string().max(4000),
+  instrucciones_analisis: z.string().max(1000).optional(),
 });
 
 const PRIVATE_HOST =

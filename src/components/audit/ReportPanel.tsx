@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { downloadActaPdf } from "@/lib/pdf";
 import {
   countByRisk,
+  detectionWarnings,
   informeToHtml,
   informeToText,
   type Hallazgo,
@@ -89,6 +90,7 @@ export function ReportPanel({
   onReset,
 }: Props) {
   const counts = countByRisk(informe.hallazgos);
+  const warnings = detectionWarnings(informe, meta);
   // Keep the order fixed while the technician edits; sorting happens when the report loads.
   const sorted = informe.hallazgos;
   const [pdfBusy, setPdfBusy] = useState(false);
@@ -146,6 +148,20 @@ export function ReportPanel({
         >
           Este informe contiene datos de ejemplo para probar la interfaz. El PDF se genera con marca
           de agua y <strong>no es válido como acta oficial</strong>.
+        </div>
+      )}
+
+      {warnings.length > 0 && (
+        <div
+          role="status"
+          className="rounded-lg border border-risk-medium/40 bg-risk-medium-soft px-3 py-2.5 text-sm text-risk-medium-ink"
+        >
+          <p className="font-semibold">Revisión sugerida antes de firmar</p>
+          <ul className="mt-1 list-disc space-y-1 pl-4">
+            {warnings.map((warning) => (
+              <li key={warning.code}>{warning.message}</li>
+            ))}
+          </ul>
         </div>
       )}
 

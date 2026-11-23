@@ -67,6 +67,98 @@ export function countByRisk(hallazgos: Hallazgo[]): Record<RiskLevel, number> {
   return out;
 }
 
+export type DetectionWarningCode =
+  "summary_mismatch" | "few_findings" | "single_level" | "duplicate_title";
+
+export interface DetectionWarning {
+  code: DetectionWarningCode;
+  message: string;
+}
+
+const NUMBER_WORDS: Record<string, number> = {
+  uno: 1,
+  una: 1,
+  dos: 2,
+  tres: 3,
+  cuatro: 4,
+  cinco: 5,
+  seis: 6,
+  siete: 7,
+  ocho: 8,
+  nueve: 9,
+  diez: 10,
+};
+
+const COUNT_PATTERN = new RegExp(
+  `\\b(\\d{1,2}|${Object.keys(NUMBER_WORDS).join("|")})\\s+` +
+    `(?:hallazg|riesg|incidenci|situaci)[a-z]*\\b`,
+);
+
+const SEVERAL_PATTERN = /\b(varios|varias|multiples|diversos|diversas|muchos|muchas)\b/;
+
+/** Número de hallazgos anunciado en el resumen, en dígitos o en palabras. */
+function announcedCount(resumen: string): number | null {
+  const match = COUNT_PATTERN.exec(strip(resumen));
+  if (!match?.[1]) return null;
+  const raw = match[1];
+  return /^\d+$/.test(raw) ? Number(raw) : (NUMBER_WORDS[raw] ?? null);
+}
+
+/**
+ * Señales de baja calidad en un informe recién generado. No bloquean la edición:
+ * el técnico conserva la decisión final.
+ */
+export function detectionWarnings(informe: Informe, meta: InspeccionMeta): DetectionWarning[] {
+  const warnings: DetectionWarning[] = [];
+  const findings = informe.hallazgos;
+  const resumen = informe.resumen_general ?? "";
+  const count = announcedCount(resumen);
+
+  if (count !== null && count !== findings.length) {
+    warnings.push({
+      code: "summary_mismatch",
+      message:
+        `El resumen menciona ${count} hallazgo${count === 1 ? "" : "s"} y se listan ` +
+        `${findings.length}. Revisa el análisis antes de firmar.`,
+    });
+  }
+
+  const levels = new Set(findings.map((h) => riskLevel(h.nivel_riesgo)));
+  const singleLevel = findings.length > 1 && levels.size === 1;
+
+  if (
+    findings.length <= 2 &&
+    !meta.observaciones.trim() &&
+    (singleLevel || SEVERAL_PATTERN.test(strip(resumen)))
+  ) {
+    warnings.push({
+      code: "few_findings",
+      message:
+        "Solo se han detectado uno o dos hallazgos sin observaciones del técnico. " +
+        "Revisa la foto o añade pistas antes de firmar.",
+    });
+  }
+
+  if (singleLevel) {
+    warnings.push({
+      code: "single_level",
+      message:
+        "Todos los hallazgos tienen el mismo nivel de riesgo. " +
+        "Comprueba si falta clasificar algún riesgo.",
+    });
+  }
+
+  const titles = findings.map((h) => strip(h.titulo)).filter(Boolean);
+  if (new Set(titles).size !== titles.length) {
+    warnings.push({
+      code: "duplicate_title",
+      message: "Hay hallazgos con títulos repetidos. Revisa que no se hayan duplicado.",
+    });
+  }
+
+  return warnings;
+}
+
 const str = (v: unknown) => (typeof v === "string" ? v.trim() : v == null ? "" : String(v));
 
 function tryParseJson(text: string): unknown {
