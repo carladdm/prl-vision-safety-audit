@@ -27,25 +27,34 @@ import {
   type Informe,
   type InspeccionMeta,
 } from "@/lib/report";
+import { OG_IMAGE_URL, SITE_DESCRIPTION, SITE_TITLE, SITE_URL } from "@/lib/site-metadata";
 import { getAnalysisStatus, sendToWebhook } from "@/lib/webhook.functions";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "PRL Vision Audit — Evaluación de riesgos en campo" },
+      { title: SITE_TITLE },
       {
         name: "description",
         content:
           "Asistente para técnicos de PRL: fotografía el puesto de trabajo y obtén un informe de riesgos con normativa, medidas correctivas, plazos y responsables.",
       },
-      { property: "og:title", content: "PRL Vision Audit — Evaluación de riesgos en campo" },
-      {
-        property: "og:description",
-        content:
-          "Fotografía el puesto de trabajo y genera al instante un informe técnico de riesgos laborales.",
-      },
+      { property: "og:title", content: SITE_TITLE },
+      { property: "og:description", content: SITE_DESCRIPTION },
       { property: "og:type", content: "website" },
+      { property: "og:url", content: SITE_URL },
+      { property: "og:image", content: OG_IMAGE_URL },
+      { property: "og:image:width", content: "1200" },
+      { property: "og:image:height", content: "630" },
+      {
+        property: "og:image:alt",
+        content: `${SITE_TITLE} — ${SITE_DESCRIPTION}`,
+      },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: SITE_TITLE },
+      { name: "twitter:description", content: SITE_DESCRIPTION },
+      { name: "twitter:image", content: OG_IMAGE_URL },
+      { name: "twitter:image:alt", content: SITE_TITLE },
     ],
   }),
   component: Index,
