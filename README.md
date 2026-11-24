@@ -8,6 +8,8 @@
 [![Licencia MIT](https://img.shields.io/badge/Licencia-MIT-22C55E)](LICENSE)
 
 🌐 **[Ver demo en vivo →](https://prl-vision-safety-audit.vercel.app)**
+> [!NOTE]
+> **Estado de la infraestructura:** El flujo de inferencia en vivo se encuentra actualmente en proceso de migración desde n8n Cloud hacia una instancia *self-hosted* de n8n. Mientras se completa la reconexión del webhook (`N8N_WEBHOOK_URL`), la demo web permite probar la interfaz completa, explorar un caso de ejemplo precargado y exportar o enviar el acta en PDF.
 
 ## Demo
 
